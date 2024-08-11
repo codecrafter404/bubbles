@@ -15,6 +15,19 @@ type Item {
   "Custom text which will be displayed to the user underneath the name"
   identifier: String!
 }
+input ItemInput {
+  "Should be unique across items/customitems"
+  id: Int!
+  "eg.: Cheesecake"
+  name: String!
+  price: Float!
+  "an URL eg.: https://example.com/cheesecake"
+  image: String!
+  "Wheather the item is in stock; if all variants of a CustomItems are out of stock, the CustomItem will also go out of stock"
+  available: Boolean!
+  "Custom text which will be displayed to the user underneath the name"
+  identifier: String!
+}
 
 type CustomItem {
   "Should be unique across items/customitems"
@@ -26,8 +39,18 @@ type CustomItem {
   "Wheather multiple variants can be selected at once"
   exclusive: Boolean!
 }
+input CustomItemInput {
+  "Should be unique across items/customitems"
+  id: Int!
+  name: String!
+  "The dependency of the item for building a tree (only custom items)"
+  dependsOn: Int
+  variants: [ItemInput!]!
+  "Wheather multiple variants can be selected at once"
+  exclusive: Boolean!
+}
 
-type NewOrder {
+input NewOrder {
   "Quantity = dublicate items"
   items: [Int!]!
   "Quantity = dublicate Items"
@@ -36,7 +59,7 @@ type NewOrder {
   total: Float!
 }
 
-type NewCustomItem {
+input NewCustomItem {
   id: Int!
   variants: [Int!]!
 }
@@ -66,7 +89,7 @@ enum User {
   USER
 }
 
-type UpdateItem {
+input UpdateItem {
   "eg.: Cheesecake"
   name: String
   price: Float
@@ -86,8 +109,8 @@ type Mutation {
 
   updateItem(id: Int!, item: UpdateItem!): Item!
   deleteItems(id: [Int!]!): [Int!]!
-  createItems(items: [Item!]!): [Int!]!
-  createCustomItems(items: [CustomItem!]!): [Int!]!
+  createItems(items: [ItemInput!]!): [Int!]!
+  createCustomItems(items: [CustomItemInput!]!): [Int!]!
 }
 type Statistics {
   totalOrders: Int!

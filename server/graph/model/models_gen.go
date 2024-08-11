@@ -2,25 +2,236 @@
 
 package model
 
+import (
+	"fmt"
+	"io"
+	"strconv"
+)
+
+type CustomItem struct {
+	// Should be unique across items/customitems
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	// The dependency of the item for building a tree (only custom items)
+	DependsOn *int    `json:"dependsOn,omitempty"`
+	Variants  []*Item `json:"variants"`
+	// Wheather multiple variants can be selected at once
+	Exclusive bool `json:"exclusive"`
+}
+
+type CustomItemInput struct {
+	// Should be unique across items/customitems
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	// The dependency of the item for building a tree (only custom items)
+	DependsOn *int         `json:"dependsOn,omitempty"`
+	Variants  []*ItemInput `json:"variants"`
+	// Wheather multiple variants can be selected at once
+	Exclusive bool `json:"exclusive"`
+}
+
+type Item struct {
+	// Should be unique across items/customitems
+	ID int `json:"id"`
+	// eg.: Cheesecake
+	Name  string  `json:"name"`
+	Price float64 `json:"price"`
+	// an URL eg.: https://example.com/cheesecake
+	Image string `json:"image"`
+	// Wheather the item is in stock; if all variants of a CustomItems are out of stock, the CustomItem will also go out of stock
+	Available bool `json:"available"`
+	// Custom text which will be displayed to the user underneath the name
+	Identifier string `json:"identifier"`
+}
+
+type ItemInput struct {
+	// Should be unique across items/customitems
+	ID int `json:"id"`
+	// eg.: Cheesecake
+	Name  string  `json:"name"`
+	Price float64 `json:"price"`
+	// an URL eg.: https://example.com/cheesecake
+	Image string `json:"image"`
+	// Wheather the item is in stock; if all variants of a CustomItems are out of stock, the CustomItem will also go out of stock
+	Available bool `json:"available"`
+	// Custom text which will be displayed to the user underneath the name
+	Identifier string `json:"identifier"`
+}
+
 type Mutation struct {
 }
 
-type NewTodo struct {
-	Text   string `json:"text"`
-	UserID string `json:"userId"`
+type NewCustomItem struct {
+	ID       int   `json:"id"`
+	Variants []int `json:"variants"`
+}
+
+type NewOrder struct {
+	// Quantity = dublicate items
+	Items []int `json:"items"`
+	// Quantity = dublicate Items
+	CustomItems []*NewCustomItem `json:"customItems"`
+	// The total amount of money earned
+	Total float64 `json:"total"`
+}
+
+type Order struct {
+	ID        int    `json:"id"`
+	Timestamp string `json:"timestamp"`
+	// A string generated sequencially to identifiy an OPEN order
+	Identifier string     `json:"identifier"`
+	State      OrderState `json:"state"`
+	// Quantity = dublicate Items
+	Items []*Item `json:"items"`
+	// Quantity = dublicate Items
+	CustomItems []*CustomItem `json:"customItems"`
 }
 
 type Query struct {
 }
 
-type Todo struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-	Done bool   `json:"done"`
-	User *User  `json:"user"`
+type Statistics struct {
+	TotalOrders           int     `json:"totalOrders"`
+	TotalOrdersCompleated int     `json:"totalOrdersCompleated"`
+	TotalEarned           float64 `json:"totalEarned"`
 }
 
-type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+type Subscription struct {
+}
+
+type UpdateItem struct {
+	// eg.: Cheesecake
+	Name  *string  `json:"name,omitempty"`
+	Price *float64 `json:"price,omitempty"`
+	// an URL eg.: https://example.com/cheesecake.png
+	Image *string `json:"image,omitempty"`
+	// Wheather the item is in stock; if all variants of a CustomItems are out of stock, the CustomItem will also go out of stock
+	Available *bool `json:"available,omitempty"`
+	// Custom text which will be displayed to the user underneath the name
+	Identifier *string `json:"identifier,omitempty"`
+}
+
+type OrderState string
+
+const (
+	OrderStatePending    OrderState = "PENDING"
+	OrderStateCompleated OrderState = "COMPLEATED"
+	OrderStateCanceled   OrderState = "CANCELED"
+)
+
+var AllOrderState = []OrderState{
+	OrderStatePending,
+	OrderStateCompleated,
+	OrderStateCanceled,
+}
+
+func (e OrderState) IsValid() bool {
+	switch e {
+	case OrderStatePending, OrderStateCompleated, OrderStateCanceled:
+		return true
+	}
+	return false
+}
+
+func (e OrderState) String() string {
+	return string(e)
+}
+
+func (e *OrderState) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = OrderState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid OrderState", str)
+	}
+	return nil
+}
+
+func (e OrderState) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type UpdateEvent string
+
+const (
+	UpdateEventUpdateCustomitem UpdateEvent = "UPDATE_CUSTOMITEM"
+	UpdateEventUpdateItem       UpdateEvent = "UPDATE_ITEM"
+)
+
+var AllUpdateEvent = []UpdateEvent{
+	UpdateEventUpdateCustomitem,
+	UpdateEventUpdateItem,
+}
+
+func (e UpdateEvent) IsValid() bool {
+	switch e {
+	case UpdateEventUpdateCustomitem, UpdateEventUpdateItem:
+		return true
+	}
+	return false
+}
+
+func (e UpdateEvent) String() string {
+	return string(e)
+}
+
+func (e *UpdateEvent) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = UpdateEvent(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid UpdateEvent", str)
+	}
+	return nil
+}
+
+func (e UpdateEvent) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type User string
+
+const (
+	UserAdmin User = "ADMIN"
+	UserUser  User = "USER"
+)
+
+var AllUser = []User{
+	UserAdmin,
+	UserUser,
+}
+
+func (e User) IsValid() bool {
+	switch e {
+	case UserAdmin, UserUser:
+		return true
+	}
+	return false
+}
+
+func (e User) String() string {
+	return string(e)
+}
+
+func (e *User) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = User(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid User", str)
+	}
+	return nil
+}
+
+func (e User) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }
