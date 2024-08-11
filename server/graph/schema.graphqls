@@ -2,27 +2,118 @@
 #
 # https://gqlgen.com/getting-started/
 
-type Todo {
-  id: ID!
-  text: String!
-  done: Boolean!
-  user: User!
-}
-
-type User {
-  id: ID!
+type Item {
+  "Should be unique across items/customitems"
+  id: Int!
+  "eg.: Cheesecake"
   name: String!
+  price: Float!
+  "an URL eg.: https://example.com/cheesecake"
+  image: String!
+  "Wheather the item is in stock; if all variants of a CustomItems are out of stock, the CustomItem will also go out of stock"
+  available: Boolean!
+  "Custom text which will be displayed to the user underneath the name"
+  identifier: String!
 }
 
-type Query {
-  todos: [Todo!]!
+type CustomItem {
+  "Should be unique across items/customitems"
+  id: Int!
+  name: String!
+  "The dependency of the item for building a tree (only custom items)"
+  dependsOn: Int
+  variants: [Item!]!
+  "Wheather multiple variants can be selected at once"
+  exclusive: Boolean!
 }
 
-input NewTodo {
-  text: String!
-  userId: String!
+type NewOrder {
+  "Quantity = dublicate items"
+  items: [Int!]!
+  "Quantity = dublicate Items"
+  customItems: [NewCustomItem!]!
+  "The total amount of money earned"
+  total: Float!
+}
+
+type NewCustomItem {
+  id: Int!
+  variants: [Int!]!
+}
+
+type Order {
+  id: Int! 
+  timestamp: String!
+  "A string generated sequencially to identifiy an OPEN order"
+  identifier: String!
+
+  state: OrderState!
+
+  "Quantity = dublicate Items"
+  items: [Item!]!
+  "Quantity = dublicate Items"
+  customItems: [CustomItem!]!
+}
+
+enum OrderState {
+  PENDING
+  COMPLEATED
+  CANCELED
+}
+
+enum User {
+  ADMIN
+  USER
+}
+
+type UpdateItem {
+  "eg.: Cheesecake"
+  name: String
+  price: Float
+  "an URL eg.: https://example.com/cheesecake.png"
+  image: String
+  "Wheather the item is in stock; if all variants of a CustomItems are out of stock, the CustomItem will also go out of stock"
+  available: Boolean
+  "Custom text which will be displayed to the user underneath the name"
+  identifier: String
 }
 
 type Mutation {
-  createTodo(input: NewTodo!): Todo!
+  createOrder(order: NewOrder!): Order!
+  updateOrder(order: Int!, state: OrderState!): Order!
+  "Only available to admins"
+  deleteOrder(order: Int!): Int!
+
+  updateItem(id: Int!, item: UpdateItem!): Item!
+  deleteItems(id: [Int!]!): [Int!]!
+  createItems(items: [Item!]!): [Int!]!
+  createCustomItems(items: [CustomItem!]!): [Int!]!
+}
+type Statistics {
+  totalOrders: Int!
+  totalOrdersCompleated: Int!
+  totalEarned: Float!
+}
+
+enum UpdateEvent {
+  UPDATE_CUSTOMITEM
+  UPDATE_ITEM
+}
+
+type Query {
+  getPermission: User!
+  getOrder(id: Int!): Order!
+}
+type Subscription {
+  orders(state: OrderState, id: Int, limit: Int, skip: Int): [Order!]!
+  "The next order that should be worked on by the client"
+  nextOrder: Order
+  updates: UpdateEvent
+  stats: Statistics!
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
 }
