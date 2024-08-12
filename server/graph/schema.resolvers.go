@@ -43,6 +43,7 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 		item_ids = append(item_ids, item.ID)
 	}
 
+	//TODO: use sqlx
 	rows, err := r.Db.Query("SELECT id FROM item WHERE id IN (?)", item_ids)
 	if err != nil {
 		return []int{}, fmt.Errorf("Failed to count rows: %w", err)
@@ -60,9 +61,29 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 	if err != nil {
 		return []int{}, fmt.Errorf("Failed to beginn transaction: %w", err)
 	}
+
 	for _, item := range items {
+		for _, exItemId := range exItems {
+			if item.ID == exItemId {
+				_, err := tx.Exec("DELETE FROM item WHERE id = ?", item.ID)
+				if err != nil {
+					return []int{}, fmt.Errorf("Failed to tx.exec delete for %d: %w", item.ID, err)
+				}
+				break
+			}
+		}
+		_, err = tx.Exec("INSERT INTO item (id, name, price, image, available, identifier) VALUES (?, ?, ?, ?, ?, ?)", item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier)
+		if err != nil {
+			return []int{}, fmt.Errorf("Failed to tx.exec insert for %d: %w", item.ID, err)
+		}
+
 	}
-	panic(fmt.Errorf("not implemented: CreateItems - createItems"))
+
+	err = tx.Commit()
+	if err != nil {
+		return []int{}, fmt.Errorf("Failed to commit transaction: %w", err)
+	}
+	return item_ids, nil
 }
 
 // CreateCustomItems is the resolver for the createCustomItems field.
