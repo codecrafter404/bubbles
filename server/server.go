@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -17,8 +19,19 @@ func main() {
 	if port == "" {
 		port = defaultPort
 	}
+	db_path := os.Getenv("DB_PATH")
+	if db_path == "" {
+		db_path = "bubbles.db"
+	}
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
+	connection, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared", db_path))
+
+	if err != nil {
+		fmt.Printf("Failed to open db connection: %s\n", err.Error())
+		return
+	}
+
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection}}))
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
