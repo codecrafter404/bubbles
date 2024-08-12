@@ -10,6 +10,8 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/codecrafter404/bubble/graph"
+	"github.com/codecrafter404/bubble/utils"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const defaultPort = "8080"
@@ -28,6 +30,14 @@ func main() {
 
 	if err != nil {
 		fmt.Printf("Failed to open db connection: %s\n", err.Error())
+		return
+	}
+
+	defer connection.Close()
+
+	err = utils.MigrateDb(connection)
+	if err != nil {
+		fmt.Println("Failed to setup:", err)
 		return
 	}
 

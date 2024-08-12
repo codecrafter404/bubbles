@@ -83,6 +83,7 @@ type ComplexityRoot struct {
 		Items       func(childComplexity int) int
 		State       func(childComplexity int) int
 		Timestamp   func(childComplexity int) int
+		Total       func(childComplexity int) int
 	}
 
 	Query struct {
@@ -345,6 +346,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Order.Timestamp(childComplexity), true
+
+	case "Order.total":
+		if e.complexity.Order.Total == nil {
+			break
+		}
+
+		return e.complexity.Order.Total(childComplexity), true
 
 	case "Query.getOrder":
 		if e.complexity.Query.GetOrder == nil {
@@ -1340,6 +1348,8 @@ func (ec *executionContext) fieldContext_Mutation_createOrder(ctx context.Contex
 				return ec.fieldContext_Order_identifier(ctx, field)
 			case "state":
 				return ec.fieldContext_Order_state(ctx, field)
+			case "total":
+				return ec.fieldContext_Order_total(ctx, field)
 			case "items":
 				return ec.fieldContext_Order_items(ctx, field)
 			case "customItems":
@@ -1409,6 +1419,8 @@ func (ec *executionContext) fieldContext_Mutation_updateOrder(ctx context.Contex
 				return ec.fieldContext_Order_identifier(ctx, field)
 			case "state":
 				return ec.fieldContext_Order_state(ctx, field)
+			case "total":
+				return ec.fieldContext_Order_total(ctx, field)
 			case "items":
 				return ec.fieldContext_Order_items(ctx, field)
 			case "customItems":
@@ -1896,6 +1908,50 @@ func (ec *executionContext) fieldContext_Order_state(_ context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _Order_total(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Order_total(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Total, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Order_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Order_items(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_items(ctx, field)
 	if err != nil {
@@ -2101,6 +2157,8 @@ func (ec *executionContext) fieldContext_Query_getOrder(ctx context.Context, fie
 				return ec.fieldContext_Order_identifier(ctx, field)
 			case "state":
 				return ec.fieldContext_Order_state(ctx, field)
+			case "total":
+				return ec.fieldContext_Order_total(ctx, field)
 			case "items":
 				return ec.fieldContext_Order_items(ctx, field)
 			case "customItems":
@@ -2445,6 +2503,8 @@ func (ec *executionContext) fieldContext_Subscription_orders(ctx context.Context
 				return ec.fieldContext_Order_identifier(ctx, field)
 			case "state":
 				return ec.fieldContext_Order_state(ctx, field)
+			case "total":
+				return ec.fieldContext_Order_total(ctx, field)
 			case "items":
 				return ec.fieldContext_Order_items(ctx, field)
 			case "customItems":
@@ -2525,6 +2585,8 @@ func (ec *executionContext) fieldContext_Subscription_nextOrder(_ context.Contex
 				return ec.fieldContext_Order_identifier(ctx, field)
 			case "state":
 				return ec.fieldContext_Order_state(ctx, field)
+			case "total":
+				return ec.fieldContext_Order_total(ctx, field)
 			case "items":
 				return ec.fieldContext_Order_items(ctx, field)
 			case "customItems":
@@ -4924,6 +4986,11 @@ func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "state":
 			out.Values[i] = ec._Order_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._Order_total(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

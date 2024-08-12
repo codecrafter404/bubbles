@@ -81,6 +81,7 @@ type Order struct {
 	// A string generated sequencially to identifiy an OPEN order
 	Identifier string     `json:"identifier"`
 	State      OrderState `json:"state"`
+	Total      float64    `json:"total"`
 	// Quantity = dublicate Items
 	Items []*Item `json:"items"`
 	// Quantity = dublicate Items

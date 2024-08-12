@@ -32,5 +32,6 @@ CREATE TABLE IF NOT EXISTS orders_items_link(
 );
 CREATE TABLE IF NOT EXISTS orders_custom_items_link(
 	order_id INTEGER NOT NULL,
-	custom_item_id INTEGER NOT NULL
+	custom_item_id INTEGER NOT NULL,
+	item_id INTEGER NOT NULL
 );

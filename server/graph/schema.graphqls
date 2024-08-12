@@ -71,6 +71,7 @@ type Order {
   identifier: String!
 
   state: OrderState!
+  total: Float!
 
   "Quantity = dublicate Items"
   items: [Item!]!

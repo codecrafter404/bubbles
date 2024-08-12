@@ -38,6 +38,30 @@ func (r *mutationResolver) DeleteItems(ctx context.Context, id []int) ([]int, er
 
 // CreateItems is the resolver for the createItems field.
 func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemInput) ([]int, error) {
+	item_ids := []int{}
+	for _, item := range items {
+		item_ids = append(item_ids, item.ID)
+	}
+
+	rows, err := r.Db.Query("SELECT id FROM item WHERE id IN (?)", item_ids)
+	if err != nil {
+		return []int{}, fmt.Errorf("Failed to count rows: %w", err)
+	}
+
+	exItems := []int{}
+	for rows.Next() {
+		var exItemId int
+		if err := rows.Scan(&exItemId); err != nil {
+			return []int{}, fmt.Errorf("Failed to read row: %w", err)
+		}
+		exItems = append(exItems, exItemId)
+	}
+	tx, err := r.Db.Begin()
+	if err != nil {
+		return []int{}, fmt.Errorf("Failed to beginn transaction: %w", err)
+	}
+	for _, item := range items {
+	}
 	panic(fmt.Errorf("not implemented: CreateItems - createItems"))
 }
 
