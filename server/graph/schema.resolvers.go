@@ -6,6 +6,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/codecrafter404/bubble/graph/model"
@@ -38,44 +39,18 @@ func (r *mutationResolver) DeleteItems(ctx context.Context, id []int) ([]int, er
 
 // CreateItems is the resolver for the createItems field.
 func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemInput) ([]int, error) {
-	item_ids := []int{}
-	for _, item := range items {
-		item_ids = append(item_ids, item.ID)
-	}
-
-	//TODO: use sqlx
-	rows, err := r.Db.Query("SELECT id FROM item WHERE id IN (?)", item_ids)
-	if err != nil {
-		return []int{}, fmt.Errorf("Failed to count rows: %w", err)
-	}
-
-	exItems := []int{}
-	for rows.Next() {
-		var exItemId int
-		if err := rows.Scan(&exItemId); err != nil {
-			return []int{}, fmt.Errorf("Failed to read row: %w", err)
-		}
-		exItems = append(exItems, exItemId)
-	}
 	tx, err := r.Db.Begin()
 	if err != nil {
 		return []int{}, fmt.Errorf("Failed to beginn transaction: %w", err)
 	}
 
+	itemIDs := []int{}
 	for _, item := range items {
-		for _, exItemId := range exItems {
-			if item.ID == exItemId {
-				_, err := tx.Exec("DELETE FROM item WHERE id = ?", item.ID)
-				if err != nil {
-					return []int{}, fmt.Errorf("Failed to tx.exec delete for %d: %w", item.ID, err)
-				}
-				break
-			}
-		}
-		_, err = tx.Exec("INSERT INTO item (id, name, price, image, available, identifier) VALUES (?, ?, ?, ?, ?, ?)", item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier)
+		_, err = tx.Exec("DELETE FROM item WHERE id = ?;INSERT INTO item (id, name, price, image, available, identifier) VALUES (?, ?, ?, ?, ?, ?);", item.ID, item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier)
 		if err != nil {
 			return []int{}, fmt.Errorf("Failed to tx.exec insert for %d: %w", item.ID, err)
 		}
+		itemIDs = append(itemIDs, item.ID)
 
 	}
 
@@ -83,12 +58,26 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 	if err != nil {
 		return []int{}, fmt.Errorf("Failed to commit transaction: %w", err)
 	}
-	return item_ids, nil
+
+	msg := model.UpdateEventUpdateItem
+	select {
+	case r.EventChannel <- &msg:
+		break
+	default:
+		break
+	}
+	return itemIDs, nil
 }
 
 // CreateCustomItems is the resolver for the createCustomItems field.
 func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model.CustomItemInput) ([]int, error) {
-	panic(fmt.Errorf("not implemented: CreateCustomItems - createCustomItems"))
+	tx, err := r.Db.Begin()
+	if err != nil {
+		return []int{}, fmt.Errorf("Failed to begin transaction: %w", err)
+	}
+
+	// check dependencies
+	// do a topological sort
 }
 
 // GetPermission is the resolver for the getPermission field.
@@ -100,6 +89,29 @@ func (r *queryResolver) GetPermission(ctx context.Context) (model.User, error) {
 // GetOrder is the resolver for the getOrder field.
 func (r *queryResolver) GetOrder(ctx context.Context, id int) (*model.Order, error) {
 	panic(fmt.Errorf("not implemented: GetOrder - getOrder"))
+}
+
+// GetItems is the resolver for the getItems field.
+func (r *queryResolver) GetItems(ctx context.Context) ([]*model.Item, error) {
+	rows, err := r.Db.Query("SELECT id, name, price, image, available, identifier FROM item")
+	if err != nil {
+		return []*model.Item{}, fmt.Errorf("Failed to query db: %w", err)
+	}
+	res := []*model.Item{}
+	for rows.Next() {
+		var item model.Item
+		err := rows.Scan(&item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier)
+		if err != nil {
+			return []*model.Item{}, fmt.Errorf("Failed to scan rows: %w", err)
+		}
+		res = append(res, &item)
+	}
+	return res, nil
+}
+
+// GetCustomItems is the resolver for the getCustomItems field.
+func (r *queryResolver) GetCustomItems(ctx context.Context) ([]*model.CustomItem, error) {
+	panic(fmt.Errorf("not implemented: GetCustomItems - getCustomItems"))
 }
 
 // Orders is the resolver for the orders field.
@@ -114,7 +126,7 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 
 // Updates is the resolver for the updates field.
 func (r *subscriptionResolver) Updates(ctx context.Context) (<-chan *model.UpdateEvent, error) {
-	panic(fmt.Errorf("not implemented: Updates - updates"))
+	return r.EventChannel, nil
 }
 
 // Stats is the resolver for the stats field.

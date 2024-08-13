@@ -8,8 +8,10 @@ import (
 	"os"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/codecrafter404/bubble/graph"
+	"github.com/codecrafter404/bubble/graph/model"
 	"github.com/codecrafter404/bubble/utils"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -41,7 +43,9 @@ func main() {
 		return
 	}
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection}}))
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection, EventChannel: make(chan *model.UpdateEvent)}}))
+
+	srv.AddTransport(&transport.Websocket{})
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)

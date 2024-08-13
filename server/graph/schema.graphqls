@@ -45,7 +45,8 @@ input CustomItemInput {
   name: String!
   "The dependency of the item for building a tree (only custom items)"
   dependsOn: Int
-  variants: [ItemInput!]!
+  "The id of the variant items of the input"
+  variants: [Int!]!
   "Wheather multiple variants can be selected at once"
   exclusive: Boolean!
 }
@@ -127,6 +128,8 @@ enum UpdateEvent {
 type Query {
   getPermission: User!
   getOrder(id: Int!): Order!
+  getItems: [Item!]!
+  getCustomItems: [CustomItem!]!
 }
 type Subscription {
   orders(state: OrderState, id: Int, limit: Int, skip: Int): [Order!]!

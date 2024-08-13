@@ -24,8 +24,9 @@ type CustomItemInput struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 	// The dependency of the item for building a tree (only custom items)
-	DependsOn *int         `json:"dependsOn,omitempty"`
-	Variants  []*ItemInput `json:"variants"`
+	DependsOn *int `json:"dependsOn,omitempty"`
+	// The id of the variant items of the input
+	Variants []int `json:"variants"`
 	// Wheather multiple variants can be selected at once
 	Exclusive bool `json:"exclusive"`
 }
