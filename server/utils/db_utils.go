@@ -3,6 +3,8 @@ package utils
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/codecrafter404/bubble/graph/model"
 )
 
 func MigrateDb(connection *sql.DB) error {
@@ -13,7 +15,8 @@ CREATE TABLE IF NOT EXISTS item(
 	price REAL NOT NULL,
 	image TEXT NOT NULL,
 	available INTEGER NOT NULL,
-	identifier TEXT NOT NULL
+	identifier TEXT NOT NULL,
+	oneoff INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS custom_item(
 	id INTEGER NOT NULL PRIMARY KEY,
@@ -50,4 +53,17 @@ CREATE TABLE IF NOT EXISTS orders_custom_items_link(
 		return fmt.Errorf("Failed to run migration: %w", err)
 	}
 	return nil
+}
+func QueryCustomItems(db *sql.DB) ([]model.CustomItem, error) {
+	rows, err := db.Query(`SELECT custom_item.id, custom_item.name, custom_item.depends_on, custom_item.exclusive, item.id, item.name, item.price, item.price, item.image, item.available, item.identifier, item.oneoff
+		FROM custom_item INNER JOIN custom_item_item_link ON custom_item.id=custom_item_item_link.custom_item_id
+		INNER JOIN item ON custom_item_item_link.item_id=item.id`)
+	if err != nil {
+		return []model.CustomItem{}, fmt.Errorf("Failed to query custom_items: %w", err)
+	}
+	itemMap := make(map[int]model.Item)
+	for rows.Next() {
+		//TODO: implement
+	}
+	panic("not implemented")
 }

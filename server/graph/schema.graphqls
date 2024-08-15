@@ -14,6 +14,9 @@ type Item {
   available: Boolean!
   "Custom text which will be displayed to the user underneath the name"
   identifier: String!
+
+  "False if the item is part of a customitem"
+  isOneOff: Boolean!
 }
 input ItemInput {
   "Should be unique across items/customitems"
@@ -27,6 +30,9 @@ input ItemInput {
   available: Boolean!
   "Custom text which will be displayed to the user underneath the name"
   identifier: String!
+
+  "False if the item is part of a customitem"
+  isOneOff: Boolean!
 }
 
 type CustomItem {
@@ -49,6 +55,13 @@ input CustomItemInput {
   variants: [Int!]!
   "Wheather multiple variants can be selected at once"
   exclusive: Boolean!
+}
+input UpdateCustomItem {
+  name: String
+  "The id of the variant items of the input"
+  variants: [Int!]
+  "Wheather multiple variants can be selected at once"
+  exclusive: Boolean
 }
 
 input NewOrder {
@@ -101,6 +114,9 @@ input UpdateItem {
   available: Boolean
   "Custom text which will be displayed to the user underneath the name"
   identifier: String
+
+  "False if the item is part of a customitem"
+  isOneOff: Boolean
 }
 
 type Mutation {
@@ -110,7 +126,8 @@ type Mutation {
   deleteOrder(order: Int!): Int!
 
   updateItem(id: Int!, item: UpdateItem!): Item!
-  deleteItems(id: [Int!]!): [Int!]!
+  updateCustomItem(id: Int!, item: UpdateCustomItem!): CustomItem!
+
   createItems(items: [ItemInput!]!): [Int!]!
   createCustomItems(items: [CustomItemInput!]!): [Int!]!
 }

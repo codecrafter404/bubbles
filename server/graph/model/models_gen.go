@@ -43,6 +43,8 @@ type Item struct {
 	Available bool `json:"available"`
 	// Custom text which will be displayed to the user underneath the name
 	Identifier string `json:"identifier"`
+	// False if the item is part of a customitem
+	IsOneOff bool `json:"isOneOff"`
 }
 
 type ItemInput struct {
@@ -57,6 +59,8 @@ type ItemInput struct {
 	Available bool `json:"available"`
 	// Custom text which will be displayed to the user underneath the name
 	Identifier string `json:"identifier"`
+	// False if the item is part of a customitem
+	IsOneOff bool `json:"isOneOff"`
 }
 
 type Mutation struct {
@@ -101,6 +105,14 @@ type Statistics struct {
 type Subscription struct {
 }
 
+type UpdateCustomItem struct {
+	Name *string `json:"name,omitempty"`
+	// The id of the variant items of the input
+	Variants []int `json:"variants,omitempty"`
+	// Wheather multiple variants can be selected at once
+	Exclusive *bool `json:"exclusive,omitempty"`
+}
+
 type UpdateItem struct {
 	// eg.: Cheesecake
 	Name  *string  `json:"name,omitempty"`
@@ -111,6 +123,8 @@ type UpdateItem struct {
 	Available *bool `json:"available,omitempty"`
 	// Custom text which will be displayed to the user underneath the name
 	Identifier *string `json:"identifier,omitempty"`
+	// False if the item is part of a customitem
+	IsOneOff *bool `json:"isOneOff,omitempty"`
 }
 
 type OrderState string

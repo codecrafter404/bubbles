@@ -30,17 +30,91 @@ func (r *mutationResolver) DeleteOrder(ctx context.Context, order int) (int, err
 
 // UpdateItem is the resolver for the updateItem field.
 func (r *mutationResolver) UpdateItem(ctx context.Context, id int, item model.UpdateItem) (*model.Item, error) {
-	panic(fmt.Errorf("not implemented: UpdateItem - updateItem"))
+	tx, txErr := r.Db.Begin()
+	if txErr != nil {
+		return nil, fmt.Errorf("Failed to begin transaction: %w", txErr)
+	}
+
+	if item.Available != nil {
+		_, updateErr := tx.Exec("UPDATE item SET available = ? WHERE id = ?", item.Available, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update available: %w", updateErr)
+		}
+	}
+
+	if item.Identifier != nil {
+		_, updateErr := tx.Exec("UPDATE item SET identifier = ? WHERE id = ?", item.Identifier, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update identifier: %w", updateErr)
+		}
+	}
+
+	if item.Image != nil {
+		_, updateErr := tx.Exec("UPDATE item SET image = ? WHERE id = ?", item.Image, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update image: %w", updateErr)
+		}
+	}
+
+	if item.IsOneOff != nil {
+		_, updateErr := tx.Exec("UPDATE item SET oneoff = ? WHERE id = ?", item.IsOneOff, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update IsOneOff: %w", updateErr)
+		}
+	}
+
+	if item.Name != nil {
+		_, updateErr := tx.Exec("UPDATE item SET name = ? WHERE id = ?", item.Name, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update name: %w", updateErr)
+		}
+	}
+
+	if item.Price != nil {
+		_, updateErr := tx.Exec("UPDATE item SET price = ? WHERE id = ?", item.Price, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update price: %w", updateErr)
+		}
+	}
+
+	rows := tx.QueryRow("SELECT id, name, price, image, available, identifier, oneoff FROM item WHERE id = ?", id)
+	var dest model.Item
+	rows.Scan(&dest.ID, &dest.Name, &dest.Price, &dest.Image, &dest.Available, &dest.Identifier, &dest.IsOneOff)
+	return &dest, nil
 }
 
-// DeleteItems is the resolver for the deleteItems field.
-func (r *mutationResolver) DeleteItems(ctx context.Context, id []int) ([]int, error) {
-	panic(fmt.Errorf("not implemented: DeleteItems - deleteItems"))
+// UpdateCustomItem is the resolver for the updateCustomItem field.
+func (r *mutationResolver) UpdateCustomItem(ctx context.Context, id int, item model.UpdateCustomItem) (*model.CustomItem, error) {
+	tx, txErr := r.Db.Begin()
+	if txErr != nil {
+		return nil, fmt.Errorf("Failed to begin transaction: %w", txErr)
+	}
+
+	if item.Exclusive != nil {
+		_, updateErr := tx.Exec("UPDATE custom_item SET exclusive = ? WHERE id = ?", item.Exclusive, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update exclusive: %w", updateErr)
+		}
+	}
+
+	if item.Name != nil {
+		_, updateErr := tx.Exec("UPDATE custom_item SET name = ? WHERE id = ?", item.Name, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update name: %w", updateErr)
+		}
+	}
+
+	if item.Variants != nil {
+		_, updateErr := tx.Exec("UPDATE custom_item SET variants = ? WHERE id = ?", item.Variants, id)
+		if updateErr != nil {
+			return nil, fmt.Errorf("Failed to update variants: %w", updateErr)
+		}
+	}
+	panic(fmt.Errorf("not implemented: UpdateCustomItem - updateCustomItem"))
 }
 
 // CreateItems is the resolver for the createItems field.
 func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemInput) ([]int, error) {
-
 	uniqueIds := []int{}
 	for _, i := range items {
 		for _, x := range uniqueIds {
@@ -57,8 +131,14 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 	}
 
 	itemIDs := []int{}
+
+	_, delErr := tx.Exec("DELETE FROM item;")
+	if delErr != nil {
+		return []int{}, fmt.Errorf("Failed to clean up old items: %w", delErr)
+	}
+
 	for _, item := range items {
-		_, err = tx.Exec("DELETE FROM item WHERE id = ?;INSERT INTO item (id, name, price, image, available, identifier) VALUES (?, ?, ?, ?, ?, ?);", item.ID, item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier)
+		_, err = tx.Exec("INSERT INTO item (id, name, price, image, available, identifier, oneoff) VALUES (?, ?, ?, ?, ?, ?, ?);", item.ID, item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier, item.IsOneOff)
 		if err != nil {
 			return []int{}, fmt.Errorf("Failed to tx.exec insert for %d: %w", item.ID, err)
 		}
@@ -91,7 +171,6 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 
 // CreateCustomItems is the resolver for the createCustomItems field.
 func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model.CustomItemInput) ([]int, error) {
-
 	graphItems := []utils.GraphNode{}
 	uniqueIds := []int{}
 	for _, i := range items {
@@ -110,7 +189,7 @@ func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model
 
 	itemIds := []int{}
 
-	rows, err := r.Db.Query("SELECT id FROM item")
+	rows, err := r.Db.Query("SELECT id FROM item WHERE oneoff == 0")
 	if err != nil {
 		return []int{}, fmt.Errorf("Failed to query existing item ids for dependency check: %w", err)
 	}
@@ -142,7 +221,7 @@ func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model
 		}
 
 		if !valid {
-			return []int{}, fmt.Errorf("customitem %d depends on variant which doesn't exist (yet)", i.ID)
+			return []int{}, fmt.Errorf("customitem %d depends on variant which doesn't exist (yet) or is marked as oneoff", i.ID)
 		}
 	}
 
@@ -151,11 +230,13 @@ func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model
 		return []int{}, fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 	insertedIds := []int{}
+
+	_, delErr := tx.Exec("DELETE FROM custom_item_item_link; DELETE FROM custom_item")
+	if delErr != nil {
+		return []int{}, fmt.Errorf("failed to cleanup item: %w", delErr)
+	}
+
 	for _, i := range items {
-		_, delErr := tx.Exec("DELETE FROM custom_item_item_link WHERE custom_item_id = ?; DELETE FROM custom_item WHERE id = ?", i.ID, i.ID)
-		if delErr != nil {
-			return []int{}, fmt.Errorf("failed to cleanup item %d: %w", i.ID, delErr)
-		}
 
 		_, inErr := tx.Exec("INSERT INTO custom_item(id, name, depends_on, exclusive) VALUES (?, ?, ?, ?)", i.ID, i.Name, i.DependsOn, i.Exclusive)
 		if inErr != nil {
@@ -207,14 +288,14 @@ func (r *queryResolver) GetOrder(ctx context.Context, id int) (*model.Order, err
 
 // GetItems is the resolver for the getItems field.
 func (r *queryResolver) GetItems(ctx context.Context) ([]*model.Item, error) {
-	rows, err := r.Db.Query("SELECT id, name, price, image, available, identifier FROM item")
+	rows, err := r.Db.Query("SELECT id, name, price, image, available, identifier, oneoff FROM item")
 	if err != nil {
 		return []*model.Item{}, fmt.Errorf("Failed to query db: %w", err)
 	}
 	res := []*model.Item{}
 	for rows.Next() {
 		var item model.Item
-		err := rows.Scan(&item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier)
+		err := rows.Scan(&item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
 		if err != nil {
 			return []*model.Item{}, fmt.Errorf("Failed to scan rows: %w", err)
 		}

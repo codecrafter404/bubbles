@@ -62,6 +62,7 @@ type ComplexityRoot struct {
 		ID         func(childComplexity int) int
 		Identifier func(childComplexity int) int
 		Image      func(childComplexity int) int
+		IsOneOff   func(childComplexity int) int
 		Name       func(childComplexity int) int
 		Price      func(childComplexity int) int
 	}
@@ -70,8 +71,8 @@ type ComplexityRoot struct {
 		CreateCustomItems func(childComplexity int, items []*model.CustomItemInput) int
 		CreateItems       func(childComplexity int, items []*model.ItemInput) int
 		CreateOrder       func(childComplexity int, order model.NewOrder) int
-		DeleteItems       func(childComplexity int, id []int) int
 		DeleteOrder       func(childComplexity int, order int) int
+		UpdateCustomItem  func(childComplexity int, id int, item model.UpdateCustomItem) int
 		UpdateItem        func(childComplexity int, id int, item model.UpdateItem) int
 		UpdateOrder       func(childComplexity int, order int, state model.OrderState) int
 	}
@@ -112,7 +113,7 @@ type MutationResolver interface {
 	UpdateOrder(ctx context.Context, order int, state model.OrderState) (*model.Order, error)
 	DeleteOrder(ctx context.Context, order int) (int, error)
 	UpdateItem(ctx context.Context, id int, item model.UpdateItem) (*model.Item, error)
-	DeleteItems(ctx context.Context, id []int) ([]int, error)
+	UpdateCustomItem(ctx context.Context, id int, item model.UpdateCustomItem) (*model.CustomItem, error)
 	CreateItems(ctx context.Context, items []*model.ItemInput) ([]int, error)
 	CreateCustomItems(ctx context.Context, items []*model.CustomItemInput) ([]int, error)
 }
@@ -211,6 +212,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Item.Image(childComplexity), true
 
+	case "Item.isOneOff":
+		if e.complexity.Item.IsOneOff == nil {
+			break
+		}
+
+		return e.complexity.Item.IsOneOff(childComplexity), true
+
 	case "Item.name":
 		if e.complexity.Item.Name == nil {
 			break
@@ -261,18 +269,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateOrder(childComplexity, args["order"].(model.NewOrder)), true
 
-	case "Mutation.deleteItems":
-		if e.complexity.Mutation.DeleteItems == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_deleteItems_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DeleteItems(childComplexity, args["id"].([]int)), true
-
 	case "Mutation.deleteOrder":
 		if e.complexity.Mutation.DeleteOrder == nil {
 			break
@@ -284,6 +280,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteOrder(childComplexity, args["order"].(int)), true
+
+	case "Mutation.updateCustomItem":
+		if e.complexity.Mutation.UpdateCustomItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCustomItem_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateCustomItem(childComplexity, args["id"].(int), args["item"].(model.UpdateCustomItem)), true
 
 	case "Mutation.updateItem":
 		if e.complexity.Mutation.UpdateItem == nil {
@@ -457,6 +465,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputItemInput,
 		ec.unmarshalInputNewCustomItem,
 		ec.unmarshalInputNewOrder,
+		ec.unmarshalInputUpdateCustomItem,
 		ec.unmarshalInputUpdateItem,
 	)
 	first := true
@@ -636,21 +645,6 @@ func (ec *executionContext) field_Mutation_createOrder_args(ctx context.Context,
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_deleteItems_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 []int
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNInt2ᚕintᚄ(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["id"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_deleteOrder_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -663,6 +657,30 @@ func (ec *executionContext) field_Mutation_deleteOrder_args(ctx context.Context,
 		}
 	}
 	args["order"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCustomItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 model.UpdateCustomItem
+	if tmp, ok := rawArgs["item"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
+		arg1, err = ec.unmarshalNUpdateCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateCustomItem(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["item"] = arg1
 	return args, nil
 }
 
@@ -1004,6 +1022,8 @@ func (ec *executionContext) fieldContext_CustomItem_variants(_ context.Context, 
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
+			case "isOneOff":
+				return ec.fieldContext_Item_isOneOff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -1319,6 +1339,50 @@ func (ec *executionContext) fieldContext_Item_identifier(_ context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Item_isOneOff(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Item_isOneOff(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsOneOff, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Item_isOneOff(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Item",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createOrder(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createOrder(ctx, field)
 	if err != nil {
@@ -1567,6 +1631,8 @@ func (ec *executionContext) fieldContext_Mutation_updateItem(ctx context.Context
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
+			case "isOneOff":
+				return ec.fieldContext_Item_isOneOff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -1585,8 +1651,8 @@ func (ec *executionContext) fieldContext_Mutation_updateItem(ctx context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_deleteItems(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_deleteItems(ctx, field)
+func (ec *executionContext) _Mutation_updateCustomItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateCustomItem(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1599,7 +1665,7 @@ func (ec *executionContext) _Mutation_deleteItems(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteItems(rctx, fc.Args["id"].([]int))
+		return ec.resolvers.Mutation().UpdateCustomItem(rctx, fc.Args["id"].(int), fc.Args["item"].(model.UpdateCustomItem))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1611,19 +1677,31 @@ func (ec *executionContext) _Mutation_deleteItems(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]int)
+	res := resTmp.(*model.CustomItem)
 	fc.Result = res
-	return ec.marshalNInt2ᚕintᚄ(ctx, field.Selections, res)
+	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_deleteItems(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateCustomItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CustomItem_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CustomItem_name(ctx, field)
+			case "dependsOn":
+				return ec.fieldContext_CustomItem_dependsOn(ctx, field)
+			case "variants":
+				return ec.fieldContext_CustomItem_variants(ctx, field)
+			case "exclusive":
+				return ec.fieldContext_CustomItem_exclusive(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CustomItem", field.Name)
 		},
 	}
 	defer func() {
@@ -1633,7 +1711,7 @@ func (ec *executionContext) fieldContext_Mutation_deleteItems(ctx context.Contex
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_deleteItems_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateCustomItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2021,6 +2099,8 @@ func (ec *executionContext) fieldContext_Order_items(_ context.Context, field gr
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
+			case "isOneOff":
+				return ec.fieldContext_Item_isOneOff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -2250,6 +2330,8 @@ func (ec *executionContext) fieldContext_Query_getItems(_ context.Context, field
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
+			case "isOneOff":
+				return ec.fieldContext_Item_isOneOff(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -4686,7 +4768,7 @@ func (ec *executionContext) unmarshalInputItemInput(ctx context.Context, obj int
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "price", "image", "available", "identifier"}
+	fieldsInOrder := [...]string{"id", "name", "price", "image", "available", "identifier", "isOneOff"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4735,6 +4817,13 @@ func (ec *executionContext) unmarshalInputItemInput(ctx context.Context, obj int
 				return it, err
 			}
 			it.Identifier = data
+		case "isOneOff":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isOneOff"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsOneOff = data
 		}
 	}
 
@@ -4816,6 +4905,47 @@ func (ec *executionContext) unmarshalInputNewOrder(ctx context.Context, obj inte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateCustomItem(ctx context.Context, obj interface{}) (model.UpdateCustomItem, error) {
+	var it model.UpdateCustomItem
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "variants", "exclusive"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "variants":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variants"))
+			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Variants = data
+		case "exclusive":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exclusive"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Exclusive = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj interface{}) (model.UpdateItem, error) {
 	var it model.UpdateItem
 	asMap := map[string]interface{}{}
@@ -4823,7 +4953,7 @@ func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj in
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "price", "image", "available", "identifier"}
+	fieldsInOrder := [...]string{"name", "price", "image", "available", "identifier", "isOneOff"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4865,6 +4995,13 @@ func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj in
 				return it, err
 			}
 			it.Identifier = data
+		case "isOneOff":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isOneOff"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsOneOff = data
 		}
 	}
 
@@ -4976,6 +5113,11 @@ func (ec *executionContext) _Item(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "isOneOff":
+			out.Values[i] = ec._Item_isOneOff(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5046,9 +5188,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "deleteItems":
+		case "updateCustomItem":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_deleteItems(ctx, field)
+				return ec._Mutation_updateCustomItem(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -5713,6 +5855,10 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx context.Context, sel ast.SelectionSet, v model.CustomItem) graphql.Marshaler {
+	return ec._CustomItem(ctx, sel, &v)
+}
+
 func (ec *executionContext) marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CustomItem) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -6055,6 +6201,11 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
+func (ec *executionContext) unmarshalNUpdateCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateCustomItem(ctx context.Context, v interface{}) (model.UpdateCustomItem, error) {
+	res, err := ec.unmarshalInputUpdateCustomItem(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNUpdateItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateItem(ctx context.Context, v interface{}) (model.UpdateItem, error) {
 	res, err := ec.unmarshalInputUpdateItem(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6363,6 +6514,44 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	}
 	res := graphql.MarshalFloatContext(*v)
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) unmarshalOInt2ᚕintᚄ(ctx context.Context, v interface{}) ([]int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]int, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNInt2int(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOInt2ᚕintᚄ(ctx context.Context, sel ast.SelectionSet, v []int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNInt2int(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
