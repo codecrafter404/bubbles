@@ -7,8 +7,10 @@ package graph
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/codecrafter404/bubble/graph/model"
+	"github.com/codecrafter404/bubble/utils"
 )
 
 // CreateOrder is the resolver for the createOrder field.
@@ -38,6 +40,17 @@ func (r *mutationResolver) DeleteItems(ctx context.Context, id []int) ([]int, er
 
 // CreateItems is the resolver for the createItems field.
 func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemInput) ([]int, error) {
+
+	uniqueIds := []int{}
+	for _, i := range items {
+		for _, x := range uniqueIds {
+			if x == i.ID {
+				return []int{}, fmt.Errorf("Id %d isn't unique", x)
+			}
+		}
+		uniqueIds = append(uniqueIds, i.ID)
+	}
+
 	tx, err := r.Db.Begin()
 	if err != nil {
 		return []int{}, fmt.Errorf("Failed to beginn transaction: %w", err)
@@ -58,26 +71,127 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 		return []int{}, fmt.Errorf("Failed to commit transaction: %w", err)
 	}
 
+	r.EventChannelMux.RLock()
+
 	msg := model.UpdateEventUpdateItem
-	select {
-	case r.EventChannel <- &msg:
-		break
-	default:
-		break
+	for _, c := range r.EventChannel {
+		select {
+		case c <- &msg:
+			break
+		default:
+			log.Println("Failed to UpdateEventUpdateItem event to channel")
+			break
+		}
 	}
+
+	r.EventChannelMux.RUnlock()
+
 	return itemIDs, nil
 }
 
 // CreateCustomItems is the resolver for the createCustomItems field.
 func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model.CustomItemInput) ([]int, error) {
-	// tx, err := r.Db.Begin()
-	// if err != nil {
-	// 	return []int{}, fmt.Errorf("Failed to begin transaction: %w", err)
-	// }
 
-	// check dependencies
-	// do a topological sort
-	panic(fmt.Errorf("not implemented: CreateCustomItems"))
+	graphItems := []utils.GraphNode{}
+	uniqueIds := []int{}
+	for _, i := range items {
+		graphItems = append(graphItems, utils.GraphNode{Id: i.ID, DependsOn: i.DependsOn})
+		for _, x := range uniqueIds {
+			if x == i.ID {
+				return []int{}, fmt.Errorf("Id %d isn't unique", x)
+			}
+		}
+		uniqueIds = append(uniqueIds, i.ID)
+	}
+
+	if !utils.CheckDependencyLoop(graphItems) {
+		return []int{}, fmt.Errorf("The supplied items have circular/unfeasable dependencies")
+	}
+
+	itemIds := []int{}
+
+	rows, err := r.Db.Query("SELECT id FROM item")
+	if err != nil {
+		return []int{}, fmt.Errorf("Failed to query existing item ids for dependency check: %w", err)
+	}
+
+	for rows.Next() {
+		var res int
+
+		err = rows.Scan(&res)
+		if err != nil {
+			return []int{}, fmt.Errorf("Failed to scan result fow (dep check): %w", err)
+		}
+		itemIds = append(itemIds, res)
+	}
+
+	for _, i := range items {
+		valid := false
+		for _, v := range i.Variants {
+			found := false
+			for _, x := range itemIds {
+				if v == x {
+					found = true
+				}
+			}
+			if found {
+				valid = true
+			} else {
+				break
+			}
+		}
+
+		if !valid {
+			return []int{}, fmt.Errorf("customitem %d depends on variant which doesn't exist (yet)", i.ID)
+		}
+	}
+
+	tx, err := r.Db.Begin()
+	if err != nil {
+		return []int{}, fmt.Errorf("Failed to begin transaction: %w", err)
+	}
+	insertedIds := []int{}
+	for _, i := range items {
+		_, delErr := tx.Exec("DELETE FROM custom_item_item_link WHERE custom_item_id = ?; DELETE FROM custom_item WHERE id = ?", i.ID, i.ID)
+		if delErr != nil {
+			return []int{}, fmt.Errorf("failed to cleanup item %d: %w", i.ID, delErr)
+		}
+
+		_, inErr := tx.Exec("INSERT INTO custom_item(id, name, depends_on, exclusive) VALUES (?, ?, ?, ?)", i.ID, i.Name, i.DependsOn, i.Exclusive)
+		if inErr != nil {
+			return []int{}, fmt.Errorf("failed to insert customitem %d: %w", i.ID, delErr)
+		}
+
+		for _, v := range i.Variants {
+			_, vErr := tx.Exec("INSERT INTO custom_item_item_link(custom_item_id, item_id) VALUES (?, ?)", i.ID, v)
+			if vErr != nil {
+				return []int{}, fmt.Errorf("failed to insert variant_link %d for %d: %w", v, i.ID, delErr)
+			}
+		}
+		insertedIds = append(insertedIds, i.ID)
+
+	}
+	comErr := tx.Commit()
+	if comErr != nil {
+		return []int{}, fmt.Errorf("Failed to commit transaction: %w", comErr)
+	}
+
+	r.EventChannelMux.RLock()
+
+	msg := model.UpdateEventUpdateCustomitem
+	for _, c := range r.EventChannel {
+		select {
+		case c <- &msg:
+			break
+		default:
+			log.Println("Failed to UpdateEventUpdateCustomitem event to channel")
+			break
+		}
+	}
+
+	r.EventChannelMux.RUnlock()
+
+	return insertedIds, nil
 }
 
 // GetPermission is the resolver for the getPermission field.
@@ -126,7 +240,38 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 
 // Updates is the resolver for the updates field.
 func (r *subscriptionResolver) Updates(ctx context.Context) (<-chan *model.UpdateEvent, error) {
-	return r.EventChannel, nil
+	channel := make(chan *model.UpdateEvent)
+
+	r.EventChannelMux.Lock()
+
+	r.EventChannel = append(r.EventChannel, channel)
+
+	r.EventChannelMux.Unlock()
+
+	resChannel := make(chan *model.UpdateEvent)
+	go func() {
+		for res := range channel {
+			select {
+			case <-ctx.Done():
+				r.EventChannelMux.Lock()
+				res := []chan *model.UpdateEvent{}
+				for _, c := range r.EventChannel {
+					if c != channel {
+						res = append(res, c)
+					}
+				}
+				r.EventChannel = res
+				r.EventChannelMux.Unlock()
+				close(channel)
+				close(resChannel)
+				return
+			default:
+				resChannel <- res
+			}
+		}
+	}()
+
+	return resChannel, nil
 }
 
 // Stats is the resolver for the stats field.

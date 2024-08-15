@@ -27,3 +27,14 @@ func (n GraphNode) resolveDependency(items []GraphNode, deps []GraphNode) ([]Gra
 	}
 	return deps, false
 }
+
+// returns true if there is NO loop
+func CheckDependencyLoop(items []GraphNode) bool {
+	for _, x := range items {
+		_, successful := x.resolveDependency(items, []GraphNode{})
+		if !successful {
+			return false
+		}
+	}
+	return true
+}

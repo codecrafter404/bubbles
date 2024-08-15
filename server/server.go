@@ -43,7 +43,7 @@ func main() {
 		return
 	}
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection, EventChannel: make(chan *model.UpdateEvent)}}))
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection, EventChannel: []chan *model.UpdateEvent{}}}))
 
 	srv.AddTransport(&transport.Websocket{})
 

@@ -2,6 +2,7 @@ package graph
 
 import (
 	"database/sql"
+	"sync"
 
 	"github.com/codecrafter404/bubble/graph/model"
 )
@@ -11,6 +12,7 @@ import (
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 type Resolver struct {
-	Db           *sql.DB
-	EventChannel chan *model.UpdateEvent
+	Db              *sql.DB
+	EventChannel    []chan *model.UpdateEvent
+	EventChannelMux sync.RWMutex
 }
