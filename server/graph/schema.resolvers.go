@@ -6,7 +6,6 @@ package graph
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/codecrafter404/bubble/graph/model"
@@ -71,13 +70,14 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 
 // CreateCustomItems is the resolver for the createCustomItems field.
 func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model.CustomItemInput) ([]int, error) {
-	tx, err := r.Db.Begin()
-	if err != nil {
-		return []int{}, fmt.Errorf("Failed to begin transaction: %w", err)
-	}
+	// tx, err := r.Db.Begin()
+	// if err != nil {
+	// 	return []int{}, fmt.Errorf("Failed to begin transaction: %w", err)
+	// }
 
 	// check dependencies
 	// do a topological sort
+	panic(fmt.Errorf("not implemented: CreateCustomItems"))
 }
 
 // GetPermission is the resolver for the getPermission field.

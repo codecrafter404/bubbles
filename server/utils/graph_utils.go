@@ -6,25 +6,24 @@ type GraphNode struct {
 }
 
 func (n GraphNode) resolveDependency(items []GraphNode, deps []GraphNode) ([]GraphNode, bool) {
+	if n.DependsOn == nil {
+		return deps, true
+	}
 	for _, i := range items {
-		if i.Id == *n.DependsOn {
+		if *n.DependsOn == i.Id { // found the dependency
+			for _, x := range deps { // check if we already have the dependency
+				if x.Id == *n.DependsOn {
+					return deps, false
+				}
+			}
 			deps = append(deps, i)
-
+			res, successful := i.resolveDependency(items, deps)
+			if !successful {
+				return deps, false
+			}
+			deps = res
 			return deps, true
 		}
 	}
-	//TODO:
-}
-
-// TODO:
-func HasCycle(items []GraphNode, visited []int) bool {
-	for _, item := range items {
-		visited := []int{}
-		for _, s := range items {
-			if item.DependsOn == s.Id {
-
-			}
-		}
-	}
-	return false
+	return deps, false
 }
