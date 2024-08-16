@@ -1,0 +1,46 @@
+mutation {
+	createItems(items:  [{
+		id: 0,
+		available: true,
+		identifier: "Item 1",
+		name: "Item 1",
+		image: "Image 1",
+		isOneOff: true
+		price: 0.1
+	},
+		{
+		id: 1,
+		available: true,
+		identifier: "Variant 1",
+		name: "Variant 1",
+		image: "Image 2",
+		isOneOff: false
+		price: 0.2
+	},
+		{
+		id: 2,
+		available: true,
+		identifier: "Variant 2",
+		name: "Variant 2",
+		image: "Image 3",
+		isOneOff: false
+		price: 0.3
+	}
+	])
+	createCustomItems(items:  [
+		{
+			id: 3,
+			exclusive: true,
+			name: "Test 1",
+			variants: [1]
+		},
+		{
+			id: 4,
+			exclusive: true,
+			dependsOn: 3,
+			name: "Test 1",
+			variants: [2]
+		}
+
+	])
+}

@@ -6,9 +6,10 @@ package graph
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
+	"time"
 
 	"github.com/codecrafter404/bubble/graph/model"
 	"github.com/codecrafter404/bubble/utils"
@@ -30,6 +31,8 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 		}
 		if !found {
 			itemIds = append(itemIds, i.Item)
+		} else {
+			return nil, fmt.Errorf("Item %d is a duplicate; please use the quantity field to specify different amounts", i.Item)
 		}
 	}
 	for _, i := range order.CustomItems {
@@ -56,23 +59,43 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 			}
 		}
 	}
-
-	itemQuery, itemArgs, err := sqlx.In("SELECT id, name, price, image, available, identifier, oneoff FROM item WHERE id IN (?);", itemIds)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to build query for items: %w", err)
-	}
-
-	itemRows, err := r.Db.Query(itemQuery, itemArgs...)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to query items: %w", err)
-	}
-
 	items := []model.Item{}
-	for itemRows.Next() {
-		var item model.Item
-		err := itemRows.Scan(&item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
+	if len(itemIds) != 0 {
+
+		itemQuery, itemArgs, err := sqlx.In("SELECT id, name, price, image, available, identifier, oneoff FROM item WHERE id IN (?);", itemIds)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to scan rows: %w", err)
+			return nil, fmt.Errorf("Failed to build query for items: %w", err)
+		}
+
+		itemRows, err := r.Db.Query(itemQuery, itemArgs...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to query items: %w", err)
+		}
+
+		for itemRows.Next() {
+			var item model.Item
+			err := itemRows.Scan(&item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan rows: %w", err)
+			}
+			items = append(items, item)
+		}
+
+		// validate items
+		for _, o := range order.Items {
+			found := false
+			for _, i := range items {
+				if i.ID == o.Item {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("Couldn't find item with id %d", o.Item)
+			}
+			if o.Quantity <= 0 {
+				return nil, fmt.Errorf("Expected to find quantity >= 0 for %d", o.Item)
+			}
 		}
 	}
 
@@ -80,27 +103,15 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query custom items: %w", err)
 	}
-
-	// validate items
-	for _, o := range order.Items {
-		found := false
-		for _, i := range items {
-			if i.ID == o.Item {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return nil, fmt.Errorf("Couldn't find item with id %d", o.Item)
-		}
-	}
-
 	graphNodes := []utils.GraphNode{}
 	for _, i := range customItems {
 		graphNodes = append(graphNodes, utils.GraphNode{Id: i.ID, DependsOn: i.DependsOn})
 	}
 	// validate customitem
 	for _, o := range order.CustomItems {
+		if o.Quantity <= 0 {
+			return nil, fmt.Errorf("Expected to have quantity >= 0 for customitem %d", o.ID)
+		}
 		found := false
 		var customItem model.CustomItem
 		for _, i := range customItems {
@@ -110,6 +121,14 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 				break
 			}
 		}
+
+		if !found {
+			return nil, fmt.Errorf("Couldn't find customitem with id %d", o.ID)
+		}
+
+		if customItem.DependsOn != nil {
+			return nil, fmt.Errorf("Expected CustomItem %d to be a toplevel, but go part of a tree (dependsOn = %d)", o.ID, *customItem.DependsOn)
+		}
 		var graphNode utils.GraphNode
 		for _, n := range graphNodes {
 			if o.ID == n.Id {
@@ -118,9 +137,6 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 			}
 		}
 
-		if !found {
-			return nil, fmt.Errorf("Couldn't find customitem with id %d", o.ID)
-		}
 		deps, successful := graphNode.ResolveDependency(graphNodes, []utils.GraphNode{})
 		if !successful {
 			return nil, fmt.Errorf("Invalid db state: CustomItems should have wellformed dependencies")
@@ -158,8 +174,81 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 
 	}
 
-	//TODO: create
-	panic(fmt.Errorf("not implemented: CreateOrder - createOrder"))
+	tx, err := r.Db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to begin transaction: %w", err)
+	}
+
+	id := rand.Intn(999999999)
+	identifier := fmt.Sprintf("%d", rand.Intn(100))
+	cTime := time.Now().Format(time.RFC3339)
+	_, exErr := tx.Exec("INSERT INTO orders (id, timestamp, identifier, state) VALUES (?, ?, ?, ?)", id, cTime, identifier, model.OrderStateCreated)
+	if exErr != nil {
+		return nil, fmt.Errorf("Failed to insert order: %w", exErr)
+	}
+
+	for _, i := range order.Items {
+		_, err := tx.Exec("INSERT INTO orders_items_link (order_id, quantity, item_id) VALUES (?, ?, ?)", id, i.Quantity, i.Item)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to link item %d to order %d", i.Item, id)
+		}
+	}
+
+	for _, c := range order.CustomItems {
+		for _, v := range c.Variants {
+			_, err := tx.Exec("INSERT INTO orders_custom_items_link (order_id, custom_item_id, item_id, quantity) VALUES (?, ?, ?, ?)", id, c.ID, v, c.Quantity)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to link custom_order %d to order %d", c.ID, id)
+			}
+		}
+	}
+	resCustomItems := []*model.OrderCustomItem{}
+	for _, c := range order.CustomItems {
+		var cItem model.CustomItem
+		for _, x := range customItems {
+			if x.ID == c.ID {
+				cItem = x
+				break
+			}
+		}
+		variants := []*model.Item{}
+		for _, v := range c.Variants {
+			for _, i := range items {
+				if i.ID == v {
+					variants = append(variants, &i)
+				}
+			}
+		}
+		cItem.Variants = variants
+		resCustomItems = append(resCustomItems, &model.OrderCustomItem{Quantity: c.Quantity, CustomItem: &cItem})
+
+	}
+	resItems := []*model.OrderItem{}
+	for _, x := range order.Items {
+		var item model.Item
+		for _, z := range items {
+			if z.ID == x.Item {
+				item = z
+				break
+			}
+		}
+		resItems = append(resItems, &model.OrderItem{Quantity: x.Quantity, Item: &item})
+	}
+	txErr := tx.Commit()
+	if txErr != nil {
+		return nil, fmt.Errorf("Failed to commit transaction: %w", txErr)
+	}
+	resOrder := model.Order{
+		ID:          id,
+		Timestamp:   cTime,
+		Identifier:  identifier,
+		State:       model.OrderStateCreated,
+		Total:       order.Total,
+		CustomItems: resCustomItems,
+		Items:       resItems,
+	}
+
+	return &resOrder, nil
 }
 
 // UpdateOrder is the resolver for the updateOrder field.
@@ -282,7 +371,7 @@ func (r *mutationResolver) CreateItems(ctx context.Context, items []*model.ItemI
 	}
 
 	for _, item := range items {
-		_, err = tx.Exec("INSERT INTO item (id, name, price, image, available, identifier, oneoff) VALUES (?, ?, ?, ?, ?, ?, ?);", item.ID, item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier, item.IsOneOff)
+		_, err = tx.Exec("INSERT INTO item (id, name, price, image, available, identifier, oneoff) VALUES (?, ?, ?, ?, ?, ?, ?);", item.ID, item.Name, item.Price, item.Image, item.Available, item.Identifier, item.IsOneOff)
 		if err != nil {
 			return []int{}, fmt.Errorf("Failed to tx.exec insert for %d: %w", item.ID, err)
 		}

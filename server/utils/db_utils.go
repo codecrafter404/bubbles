@@ -40,10 +40,13 @@ CREATE TABLE IF NOT EXISTS orders(
 
 CREATE TABLE IF NOT EXISTS orders_items_link(
 	order_id INTEGER NOT NULL,
-	item_id INTEGER NOT NULL
+	quantity INTEGER NOT NULL,
+	item_id INTEGER NOT NULL,
+	PRIMARY KEY(order_id, quantity, item_id)
 );
 CREATE TABLE IF NOT EXISTS orders_custom_items_link(
 	order_id INTEGER NOT NULL,
+	quantity INTEGER NOT NULL,
 	custom_item_id INTEGER NOT NULL,
 	item_id INTEGER NOT NULL
 );
