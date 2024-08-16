@@ -306,7 +306,17 @@ func (r *queryResolver) GetItems(ctx context.Context) ([]*model.Item, error) {
 
 // GetCustomItems is the resolver for the getCustomItems field.
 func (r *queryResolver) GetCustomItems(ctx context.Context) ([]*model.CustomItem, error) {
-	panic(fmt.Errorf("not implemented: GetCustomItems - getCustomItems"))
+	items, err := utils.QueryCustomItems(r.Db)
+	if err != nil {
+		return []*model.CustomItem{}, fmt.Errorf("Failed to query customitem: %w", err)
+	}
+	res := []*model.CustomItem{}
+
+	for _, i := range items {
+		res = append(res, &i)
+	}
+
+	return res, nil
 }
 
 // Orders is the resolver for the orders field.

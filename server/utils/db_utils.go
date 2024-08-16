@@ -55,15 +55,75 @@ CREATE TABLE IF NOT EXISTS orders_custom_items_link(
 	return nil
 }
 func QueryCustomItems(db *sql.DB) ([]model.CustomItem, error) {
-	rows, err := db.Query(`SELECT custom_item.id, custom_item.name, custom_item.depends_on, custom_item.exclusive, item.id, item.name, item.price, item.price, item.image, item.available, item.identifier, item.oneoff
+	rows, err := db.Query(`SELECT custom_item.id, custom_item.name, custom_item.depends_on, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
 		FROM custom_item INNER JOIN custom_item_item_link ON custom_item.id=custom_item_item_link.custom_item_id
 		INNER JOIN item ON custom_item_item_link.item_id=item.id`)
 	if err != nil {
 		return []model.CustomItem{}, fmt.Errorf("Failed to query custom_items: %w", err)
 	}
-	itemMap := make(map[int]model.Item)
-	for rows.Next() {
-		//TODO: implement
+	res, err := parseCustomItemRows(rows)
+	if err != nil {
+		return []model.CustomItem{}, fmt.Errorf("Failed to parse custom item: %w", err)
 	}
-	panic("not implemented")
+	return res, nil
+}
+func QueryCustomItem(db *sql.DB, id int) (*model.CustomItem, error) {
+	rows, err := db.Query(`SELECT custom_item.id, custom_item.name, custom_item.depends_on, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
+		FROM custom_item INNER JOIN custom_item_item_link ON custom_item.id=custom_item_item_link.custom_item_id
+		INNER JOIN item ON custom_item_item_link.item_id=item.id
+		WHERE custom_item.id = ?`, id)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query custom_items: %w", err)
+	}
+	items, err := parseCustomItemRows(rows)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse custom item rows: %w", err)
+	}
+	if len(items) != 1 {
+		return nil, nil
+	}
+	return &items[0], nil
+}
+func parseCustomItemRows(rows *sql.Rows) ([]model.CustomItem, error) {
+	customItemMap := make(map[int]model.CustomItem)
+	itemMap := make(map[int][]model.Item)
+
+	for rows.Next() {
+		var customItem model.CustomItem
+		var item model.Item
+
+		err := rows.Scan(&customItem.ID, &customItem.Name, &customItem.DependsOn, &customItem.Exclusive, &item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
+
+		if err != nil {
+			return []model.CustomItem{}, fmt.Errorf("Failed to scan item %w", err)
+		}
+
+		_, ok := customItemMap[customItem.ID]
+
+		if !ok {
+			customItemMap[customItem.ID] = customItem
+		}
+
+		a, ok := itemMap[customItem.ID]
+		if ok {
+			itemMap[customItem.ID] = append(a, item)
+		} else {
+			itemMap[customItem.ID] = []model.Item{item}
+		}
+	}
+	res := []model.CustomItem{}
+	for _, v := range customItemMap {
+		x, s := itemMap[v.ID]
+
+		if !s {
+			res = append(res, v)
+			continue
+		}
+		for _, item := range x {
+			v.Variants = append(v.Variants, &item)
+		}
+
+		res = append(res, v)
+	}
+	return res, nil
 }
