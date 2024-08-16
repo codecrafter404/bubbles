@@ -130,3 +130,40 @@ func parseCustomItemRows(rows *sql.Rows) ([]model.CustomItem, error) {
 	}
 	return res, nil
 }
+
+func QueryOrders(db *sql.DB) ([]model.Order, error) {
+	rows, err := db.Query(`SELECT orders.id, orders.identifier, orders.timestamp, orders.state, orders_items_link.quantity, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders
+		INNER JOIN orders_items_link ON orders.id=orders_items_link.order_id
+		INNER JOIN item ON orders_items_link.item_id=item.id`)
+	if err != nil {
+		return []model.Order{}, fmt.Errorf("Failed to query db: %w", err)
+	}
+
+	orderMap := make(map[int]model.Order)
+	orderItemMap := make(map[int][]model.OrderItem)
+
+	for rows.Next() {
+		var order model.Order
+		var item model.OrderItem
+
+		err := rows.Scan(&order.ID, &order.Identifier, &order.Timestamp, &order.State, &item.Quantity, &item.Item.ID, &item.Item.Name, &item.Item.Price, &item.Item.Image, &item.Item.Available, &item.Item.Identifier, &item.Item.IsOneOff)
+		if err != nil {
+			return []model.Order{}, fmt.Errorf("Failed to scan row: %w", err)
+		}
+
+		_, exists := orderMap[order.ID]
+		if !exists {
+			orderMap[order.ID] = order
+		}
+
+		l, exists := orderItemMap[order.ID]
+		if exists {
+			orderItemMap[order.ID] = append(l, item)
+		} else {
+			orderItemMap[order.ID] = []model.OrderItem{item}
+		}
+	}
+
+	//TODO: SELECT orders.id, orders_custom_items_link.quantity, custom_item.id, custom_item.name, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders INNER JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id INNER JOIN custom_item ON orders_custom_items_link.custom_item_id=custom_item.id INNER JOIN item ON orders_custom_items_link.item_id=item.id
+	panic("")
+}
