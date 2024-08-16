@@ -68,29 +68,41 @@ type Mutation struct {
 
 type NewCustomItem struct {
 	ID       int   `json:"id"`
+	Quantity int   `json:"quantity"`
 	Variants []int `json:"variants"`
 }
 
 type NewOrder struct {
-	// Quantity = dublicate items
-	Items []int `json:"items"`
-	// Quantity = dublicate Items
+	Items       []*NewOrderItem  `json:"items"`
 	CustomItems []*NewCustomItem `json:"customItems"`
 	// The total amount of money earned
 	Total float64 `json:"total"`
+}
+
+type NewOrderItem struct {
+	Quantity int `json:"quantity"`
+	Item     int `json:"item"`
 }
 
 type Order struct {
 	ID        int    `json:"id"`
 	Timestamp string `json:"timestamp"`
 	// A string generated sequencially to identifiy an OPEN order
-	Identifier string     `json:"identifier"`
-	State      OrderState `json:"state"`
-	Total      float64    `json:"total"`
-	// Quantity = dublicate Items
-	Items []*Item `json:"items"`
-	// Quantity = dublicate Items
-	CustomItems []*CustomItem `json:"customItems"`
+	Identifier  string             `json:"identifier"`
+	State       OrderState         `json:"state"`
+	Total       float64            `json:"total"`
+	Items       []*OrderItem       `json:"items"`
+	CustomItems []*OrderCustomItem `json:"customItems"`
+}
+
+type OrderCustomItem struct {
+	Quantity   int         `json:"quantity"`
+	CustomItem *CustomItem `json:"customItem"`
+}
+
+type OrderItem struct {
+	Quantity int   `json:"quantity"`
+	Item     *Item `json:"item"`
 }
 
 type Query struct {
@@ -130,12 +142,14 @@ type UpdateItem struct {
 type OrderState string
 
 const (
+	OrderStateCreated    OrderState = "CREATED"
 	OrderStatePending    OrderState = "PENDING"
 	OrderStateCompleated OrderState = "COMPLEATED"
 	OrderStateCanceled   OrderState = "CANCELED"
 )
 
 var AllOrderState = []OrderState{
+	OrderStateCreated,
 	OrderStatePending,
 	OrderStateCompleated,
 	OrderStateCanceled,
@@ -143,7 +157,7 @@ var AllOrderState = []OrderState{
 
 func (e OrderState) IsValid() bool {
 	switch e {
-	case OrderStatePending, OrderStateCompleated, OrderStateCanceled:
+	case OrderStateCreated, OrderStatePending, OrderStateCompleated, OrderStateCanceled:
 		return true
 	}
 	return false

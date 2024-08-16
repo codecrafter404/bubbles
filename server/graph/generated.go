@@ -87,6 +87,16 @@ type ComplexityRoot struct {
 		Total       func(childComplexity int) int
 	}
 
+	OrderCustomItem struct {
+		CustomItem func(childComplexity int) int
+		Quantity   func(childComplexity int) int
+	}
+
+	OrderItem struct {
+		Item     func(childComplexity int) int
+		Quantity func(childComplexity int) int
+	}
+
 	Query struct {
 		GetCustomItems func(childComplexity int) int
 		GetItems       func(childComplexity int) int
@@ -366,6 +376,34 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Order.Total(childComplexity), true
 
+	case "OrderCustomItem.customItem":
+		if e.complexity.OrderCustomItem.CustomItem == nil {
+			break
+		}
+
+		return e.complexity.OrderCustomItem.CustomItem(childComplexity), true
+
+	case "OrderCustomItem.quantity":
+		if e.complexity.OrderCustomItem.Quantity == nil {
+			break
+		}
+
+		return e.complexity.OrderCustomItem.Quantity(childComplexity), true
+
+	case "OrderItem.item":
+		if e.complexity.OrderItem.Item == nil {
+			break
+		}
+
+		return e.complexity.OrderItem.Item(childComplexity), true
+
+	case "OrderItem.quantity":
+		if e.complexity.OrderItem.Quantity == nil {
+			break
+		}
+
+		return e.complexity.OrderItem.Quantity(childComplexity), true
+
 	case "Query.getCustomItems":
 		if e.complexity.Query.GetCustomItems == nil {
 			break
@@ -465,6 +503,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputItemInput,
 		ec.unmarshalInputNewCustomItem,
 		ec.unmarshalInputNewOrder,
+		ec.unmarshalInputNewOrderItem,
 		ec.unmarshalInputUpdateCustomItem,
 		ec.unmarshalInputUpdateItem,
 	)
@@ -2074,9 +2113,9 @@ func (ec *executionContext) _Order_items(ctx context.Context, field graphql.Coll
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Item)
+	res := resTmp.([]*model.OrderItem)
 	fc.Result = res
-	return ec.marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemᚄ(ctx, field.Selections, res)
+	return ec.marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItemᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Order_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2087,22 +2126,12 @@ func (ec *executionContext) fieldContext_Order_items(_ context.Context, field gr
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Item_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Item_name(ctx, field)
-			case "price":
-				return ec.fieldContext_Item_price(ctx, field)
-			case "image":
-				return ec.fieldContext_Item_image(ctx, field)
-			case "available":
-				return ec.fieldContext_Item_available(ctx, field)
-			case "identifier":
-				return ec.fieldContext_Item_identifier(ctx, field)
-			case "isOneOff":
-				return ec.fieldContext_Item_isOneOff(ctx, field)
+			case "quantity":
+				return ec.fieldContext_OrderItem_quantity(ctx, field)
+			case "item":
+				return ec.fieldContext_OrderItem_item(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type OrderItem", field.Name)
 		},
 	}
 	return fc, nil
@@ -2134,14 +2163,108 @@ func (ec *executionContext) _Order_customItems(ctx context.Context, field graphq
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.CustomItem)
+	res := resTmp.([]*model.OrderCustomItem)
 	fc.Result = res
-	return ec.marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemᚄ(ctx, field.Selections, res)
+	return ec.marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItemᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Order_customItems(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "quantity":
+				return ec.fieldContext_OrderCustomItem_quantity(ctx, field)
+			case "customItem":
+				return ec.fieldContext_OrderCustomItem_customItem(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type OrderCustomItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderCustomItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.OrderCustomItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderCustomItem_quantity(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Quantity, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderCustomItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderCustomItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderCustomItem_customItem(ctx context.Context, field graphql.CollectedField, obj *model.OrderCustomItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderCustomItem_customItem(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CustomItem, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CustomItem)
+	fc.Result = res
+	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderCustomItem_customItem(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderCustomItem",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -2159,6 +2282,110 @@ func (ec *executionContext) fieldContext_Order_customItems(_ context.Context, fi
 				return ec.fieldContext_CustomItem_exclusive(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CustomItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderItem_quantity(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Quantity, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderItem_item(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderItem_item(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Item, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Item)
+	fc.Result = res
+	return ec.marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderItem_item(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Item_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Item_name(ctx, field)
+			case "price":
+				return ec.fieldContext_Item_price(ctx, field)
+			case "image":
+				return ec.fieldContext_Item_image(ctx, field)
+			case "available":
+				return ec.fieldContext_Item_available(ctx, field)
+			case "identifier":
+				return ec.fieldContext_Item_identifier(ctx, field)
+			case "isOneOff":
+				return ec.fieldContext_Item_isOneOff(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
 	}
 	return fc, nil
@@ -4837,7 +5064,7 @@ func (ec *executionContext) unmarshalInputNewCustomItem(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "variants"}
+	fieldsInOrder := [...]string{"id", "quantity", "variants"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4851,6 +5078,13 @@ func (ec *executionContext) unmarshalInputNewCustomItem(ctx context.Context, obj
 				return it, err
 			}
 			it.ID = data
+		case "quantity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quantity"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Quantity = data
 		case "variants":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variants"))
 			data, err := ec.unmarshalNInt2ᚕintᚄ(ctx, v)
@@ -4880,7 +5114,7 @@ func (ec *executionContext) unmarshalInputNewOrder(ctx context.Context, obj inte
 		switch k {
 		case "items":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
-			data, err := ec.unmarshalNInt2ᚕintᚄ(ctx, v)
+			data, err := ec.unmarshalNNewOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItemᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4899,6 +5133,40 @@ func (ec *executionContext) unmarshalInputNewOrder(ctx context.Context, obj inte
 				return it, err
 			}
 			it.Total = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputNewOrderItem(ctx context.Context, obj interface{}) (model.NewOrderItem, error) {
+	var it model.NewOrderItem
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"quantity", "item"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "quantity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quantity"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Quantity = data
+		case "item":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Item = data
 		}
 	}
 
@@ -5275,6 +5543,94 @@ func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "customItems":
 			out.Values[i] = ec._Order_customItems(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var orderCustomItemImplementors = []string{"OrderCustomItem"}
+
+func (ec *executionContext) _OrderCustomItem(ctx context.Context, sel ast.SelectionSet, obj *model.OrderCustomItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, orderCustomItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("OrderCustomItem")
+		case "quantity":
+			out.Values[i] = ec._OrderCustomItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "customItem":
+			out.Values[i] = ec._OrderCustomItem_customItem(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var orderItemImplementors = []string{"OrderItem"}
+
+func (ec *executionContext) _OrderItem(ctx context.Context, sel ast.SelectionSet, obj *model.OrderItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, orderItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("OrderItem")
+		case "quantity":
+			out.Values[i] = ec._OrderItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "item":
+			out.Values[i] = ec._OrderItem_item(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6104,6 +6460,28 @@ func (ec *executionContext) unmarshalNNewOrder2githubᚗcomᚋcodecrafter404ᚋb
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNNewOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItemᚄ(ctx context.Context, v interface{}) ([]*model.NewOrderItem, error) {
+	var vSlice []interface{}
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]*model.NewOrderItem, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNNewOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItem(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNNewOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItem(ctx context.Context, v interface{}) (*model.NewOrderItem, error) {
+	res, err := ec.unmarshalInputNewOrderItem(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v model.Order) graphql.Marshaler {
 	return ec._Order(ctx, sel, &v)
 }
@@ -6160,6 +6538,114 @@ func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbub
 		return graphql.Null
 	}
 	return ec._Order(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderCustomItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItem(ctx context.Context, sel ast.SelectionSet, v *model.OrderCustomItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._OrderCustomItem(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItem(ctx context.Context, sel ast.SelectionSet, v *model.OrderItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._OrderItem(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx context.Context, v interface{}) (model.OrderState, error) {

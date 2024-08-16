@@ -65,16 +65,30 @@ input UpdateCustomItem {
 }
 
 input NewOrder {
-  "Quantity = dublicate items"
-  items: [Int!]!
-  "Quantity = dublicate Items"
+  items: [NewOrderItem!]!
   customItems: [NewCustomItem!]!
   "The total amount of money earned"
   total: Float!
 }
 
+input NewOrderItem {
+  quantity: Int!
+  item: Int!
+}
+
+type OrderItem {
+  quantity: Int!
+  item: Item!
+}
+
+type OrderCustomItem {
+  quantity: Int!
+  customItem: CustomItem!
+}
+
 input NewCustomItem {
   id: Int!
+  quantity: Int!
   variants: [Int!]!
 }
 
@@ -87,13 +101,12 @@ type Order {
   state: OrderState!
   total: Float!
 
-  "Quantity = dublicate Items"
-  items: [Item!]!
-  "Quantity = dublicate Items"
-  customItems: [CustomItem!]!
+  items: [OrderItem!]!
+  customItems: [OrderCustomItem!]!
 }
 
 enum OrderState {
+  CREATED
   PENDING
   COMPLEATED
   CANCELED

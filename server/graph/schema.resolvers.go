@@ -6,15 +6,159 @@ package graph
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 
 	"github.com/codecrafter404/bubble/graph/model"
 	"github.com/codecrafter404/bubble/utils"
+	"github.com/jmoiron/sqlx"
 )
 
 // CreateOrder is the resolver for the createOrder field.
 func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder) (*model.Order, error) {
+	itemIds := []int{}
+	customItemIds := []int{}
+
+	for _, i := range order.Items {
+		found := false
+		for _, id := range itemIds {
+			if id == i.Item {
+				found = true
+				break
+			}
+		}
+		if !found {
+			itemIds = append(itemIds, i.Item)
+		}
+	}
+	for _, i := range order.CustomItems {
+		found := false
+		for _, id := range customItemIds {
+			if id == i.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			customItemIds = append(customItemIds, i.ID)
+		}
+		for _, v := range i.Variants {
+			found := false
+			for _, id := range itemIds {
+				if id == v {
+					found = true
+					break
+				}
+			}
+			if !found {
+				itemIds = append(itemIds, v)
+			}
+		}
+	}
+
+	itemQuery, itemArgs, err := sqlx.In("SELECT id, name, price, image, available, identifier, oneoff FROM item WHERE id IN (?);", itemIds)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to build query for items: %w", err)
+	}
+
+	itemRows, err := r.Db.Query(itemQuery, itemArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query items: %w", err)
+	}
+
+	items := []model.Item{}
+	for itemRows.Next() {
+		var item model.Item
+		err := itemRows.Scan(&item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to scan rows: %w", err)
+		}
+	}
+
+	customItems, err := utils.QueryCustomItems(r.Db)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query custom items: %w", err)
+	}
+
+	// validate items
+	for _, o := range order.Items {
+		found := false
+		for _, i := range items {
+			if i.ID == o.Item {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("Couldn't find item with id %d", o.Item)
+		}
+	}
+
+	graphNodes := []utils.GraphNode{}
+	for _, i := range customItems {
+		graphNodes = append(graphNodes, utils.GraphNode{Id: i.ID, DependsOn: i.DependsOn})
+	}
+	// validate customitem
+	for _, o := range order.CustomItems {
+		found := false
+		var customItem model.CustomItem
+		for _, i := range customItems {
+			if i.ID == o.ID {
+				found = true
+				customItem = i
+				break
+			}
+		}
+		var graphNode utils.GraphNode
+		for _, n := range graphNodes {
+			if o.ID == n.Id {
+				graphNode = n
+				break
+			}
+		}
+
+		if !found {
+			return nil, fmt.Errorf("Couldn't find customitem with id %d", o.ID)
+		}
+		deps, successful := graphNode.ResolveDependency(graphNodes, []utils.GraphNode{})
+		if !successful {
+			return nil, fmt.Errorf("Invalid db state: CustomItems should have wellformed dependencies")
+		}
+
+		validationStages := []model.CustomItem{}
+		validationStages = append(validationStages, customItem)
+		for _, i := range deps {
+			var customItem model.CustomItem
+			for _, x := range customItems {
+				if i.Id == x.ID {
+					customItem = x
+					break
+				}
+			}
+			validationStages = append(validationStages, customItem)
+		}
+
+		for _, stage := range validationStages {
+			found := false
+			for _, v := range stage.Variants {
+				for _, i := range o.Variants {
+					if i == v.ID {
+						if stage.Exclusive && found {
+							return nil, fmt.Errorf("CustomItem %d (dependency for %d) has non-exclusive variant %d", stage.ID, customItem.ID, i)
+						}
+						found = true
+					}
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("CustomItem %d didn't contain at least one variant for depndend CustomItem %d", customItem.ID, stage.ID)
+			}
+		}
+
+	}
+
+	//TODO: create
 	panic(fmt.Errorf("not implemented: CreateOrder - createOrder"))
 }
 

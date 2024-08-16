@@ -5,7 +5,7 @@ type GraphNode struct {
 	DependsOn *int
 }
 
-func (n GraphNode) resolveDependency(items []GraphNode, deps []GraphNode) ([]GraphNode, bool) {
+func (n GraphNode) ResolveDependency(items []GraphNode, deps []GraphNode) ([]GraphNode, bool) {
 	if n.DependsOn == nil {
 		return deps, true
 	}
@@ -17,7 +17,7 @@ func (n GraphNode) resolveDependency(items []GraphNode, deps []GraphNode) ([]Gra
 				}
 			}
 			deps = append(deps, i)
-			res, successful := i.resolveDependency(items, deps)
+			res, successful := i.ResolveDependency(items, deps)
 			if !successful {
 				return deps, false
 			}
@@ -31,7 +31,7 @@ func (n GraphNode) resolveDependency(items []GraphNode, deps []GraphNode) ([]Gra
 // returns true if there is NO loop
 func CheckDependencyLoop(items []GraphNode) bool {
 	for _, x := range items {
-		_, successful := x.resolveDependency(items, []GraphNode{})
+		_, successful := x.ResolveDependency(items, []GraphNode{})
 		if !successful {
 			return false
 		}
