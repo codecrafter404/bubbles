@@ -177,7 +177,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 		err := rows.Scan(&order.ID, &order.Identifier, &order.Timestamp, &order.State, &scanItem.iQuantity, &scanItem.iId, &scanItem.iName, &scanItem.iPrice, &scanItem.iImage, &scanItem.iAvailable, &scanItem.iIdentifier, &scanItem.iOneOff)
 
 		if err != nil {
-			return []model.Order{}, fmt.Errorf("Failed to scan row: %w", err)
+			return []model.Order{}, fmt.Errorf("Failed to scan row1: %w", err)
 		}
 
 		_, exists := orderMap[order.ID]
@@ -212,7 +212,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 
 	orderCustomItemQuery := `SELECT orders.id, orders_custom_items_link.quantity, custom_item.id, custom_item.name, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
 		FROM orders
-		LEFT JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id
+		INNER JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id
 		LEFT JOIN custom_item ON orders_custom_items_link.custom_item_id=custom_item.id
 		LEFT JOIN item ON orders_custom_items_link.item_id=item.id`
 	orderCustomItemQueryArgs := []any{}

@@ -119,8 +119,6 @@ type Subscription struct {
 
 type UpdateCustomItem struct {
 	Name *string `json:"name,omitempty"`
-	// The id of the variant items of the input
-	Variants []int `json:"variants,omitempty"`
 	// Wheather multiple variants can be selected at once
 	Exclusive *bool `json:"exclusive,omitempty"`
 }

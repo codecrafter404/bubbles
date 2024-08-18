@@ -330,10 +330,29 @@ func (r *mutationResolver) UpdateItem(ctx context.Context, id int, item model.Up
 			return nil, fmt.Errorf("Failed to update price: %w", updateErr)
 		}
 	}
+	err := tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to commit transaction: %w", err)
+	}
 
-	rows := tx.QueryRow("SELECT id, name, price, image, available, identifier, oneoff FROM item WHERE id = ?", id)
+	rows := r.Db.QueryRow("SELECT id, name, price, image, available, identifier, oneoff FROM item WHERE id = ?", id)
 	var dest model.Item
 	rows.Scan(&dest.ID, &dest.Name, &dest.Price, &dest.Image, &dest.Available, &dest.Identifier, &dest.IsOneOff)
+
+	r.EventChannelMux.RLock()
+
+	msg := model.UpdateEventUpdateItem
+	for _, c := range r.EventChannel {
+		select {
+		case c <- &msg:
+			break
+		default:
+			log.Println("Failed to UpdateEventUpdateItem event to channel")
+			break
+		}
+	}
+
+	r.EventChannelMux.RUnlock()
 	return &dest, nil
 }
 
@@ -357,14 +376,31 @@ func (r *mutationResolver) UpdateCustomItem(ctx context.Context, id int, item mo
 			return nil, fmt.Errorf("Failed to update name: %w", updateErr)
 		}
 	}
+	err := tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to commit transaction: %w", err)
+	}
+	res, err := utils.QueryCustomItem(r.Db, id)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query orders: %w", err)
+	}
 
-	if item.Variants != nil {
-		_, updateErr := tx.Exec("UPDATE custom_item SET variants = ? WHERE id = ?", item.Variants, id)
-		if updateErr != nil {
-			return nil, fmt.Errorf("Failed to update variants: %w", updateErr)
+	r.EventChannelMux.RLock()
+
+	msg := model.UpdateEventUpdateCustomitem
+	for _, c := range r.EventChannel {
+		select {
+		case c <- &msg:
+			break
+		default:
+			log.Println("Failed to UpdateEventUpdateCustomitem event to channel")
+			break
 		}
 	}
-	panic(fmt.Errorf("not implemented: UpdateCustomItem - updateCustomItem"))
+
+	r.EventChannelMux.RUnlock()
+
+	return res, nil
 }
 
 // CreateItems is the resolver for the createItems field.
@@ -587,7 +623,42 @@ func (r *queryResolver) GetCustomItems(ctx context.Context) ([]*model.CustomItem
 
 // Orders is the resolver for the orders field.
 func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) (<-chan []*model.Order, error) {
-	panic(fmt.Errorf("not implemented: Orders - orders"))
+	resChannel := make(chan []*model.Order)
+	orderChannel := make(chan int, 7)
+
+	r.OrderChannelMux.RLock()
+	r.OrderChannel = append(r.OrderChannel, orderChannel)
+	r.OrderChannelMux.RUnlock()
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				break
+			case <-orderChannel:
+				opts := utils.OrderQueryOptions{
+					SortAsc: sortAsc,
+					State:   state,
+				}
+				if id != nil {
+					opts.FilterIds = &[]int{*id}
+				}
+				orders, err := utils.QueryOrders(r.Db, &opts)
+				if err != nil {
+					log.Println("ERROR: Failed to query db: %w", err)
+					break
+				}
+				aSkip := 0
+				if skip != nil {
+					aSkip = *skip
+				}
+
+				for i, o := range orders {
+				}
+			}
+		}
+	}()
+	return resChannel, nil
 }
 
 // NextOrder is the resolver for the nextOrder field.
@@ -597,7 +668,7 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 
 // Updates is the resolver for the updates field.
 func (r *subscriptionResolver) Updates(ctx context.Context) (<-chan *model.UpdateEvent, error) {
-	channel := make(chan *model.UpdateEvent)
+	channel := make(chan *model.UpdateEvent, 7)
 
 	r.EventChannelMux.Lock()
 
@@ -605,9 +676,9 @@ func (r *subscriptionResolver) Updates(ctx context.Context) (<-chan *model.Updat
 
 	r.EventChannelMux.Unlock()
 
-	resChannel := make(chan *model.UpdateEvent)
+	resChannel := make(chan *model.UpdateEvent, 7)
 	go func() {
-		for res := range channel {
+		for {
 			select {
 			case <-ctx.Done():
 				r.EventChannelMux.Lock()
@@ -622,8 +693,9 @@ func (r *subscriptionResolver) Updates(ctx context.Context) (<-chan *model.Updat
 				close(channel)
 				close(resChannel)
 				return
-			default:
-				resChannel <- res
+			case <-channel:
+				x := <-channel
+				resChannel <- x
 			}
 		}
 	}()

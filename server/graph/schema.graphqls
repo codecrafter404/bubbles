@@ -58,8 +58,6 @@ input CustomItemInput {
 }
 input UpdateCustomItem {
   name: String
-  "The id of the variant items of the input"
-  variants: [Int!]
   "Wheather multiple variants can be selected at once"
   exclusive: Boolean
 }
