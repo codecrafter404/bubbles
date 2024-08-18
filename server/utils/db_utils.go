@@ -3,6 +3,9 @@ package utils
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"slices"
+	"time"
 
 	"github.com/codecrafter404/bubble/graph/model"
 )
@@ -140,8 +143,8 @@ type OrderQueryOptions struct {
 
 func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) {
 	orderQuery := `SELECT orders.id, orders.identifier, orders.timestamp, orders.state, orders_items_link.quantity, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders
-		INNER JOIN orders_items_link ON orders.id=orders_items_link.order_id
-		INNER JOIN item ON orders_items_link.item_id=item.id`
+		LEFT JOIN orders_items_link ON orders.id=orders_items_link.order_id
+		LEFT JOIN item ON orders_items_link.item_id=item.id`
 
 	orderQueryArgs := []any{}
 
@@ -161,8 +164,18 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 	for rows.Next() {
 		var order model.Order
 		var item model.OrderItem
+		scanItem := struct {
+			iQuantity   *int
+			iId         *int
+			iName       *string
+			iPrice      *float64
+			iImage      *string
+			iAvailable  *bool
+			iIdentifier *string
+			iOneOff     *bool
+		}{}
+		err := rows.Scan(&order.ID, &order.Identifier, &order.Timestamp, &order.State, &scanItem.iQuantity, &scanItem.iId, &scanItem.iName, &scanItem.iPrice, &scanItem.iImage, &scanItem.iAvailable, &scanItem.iIdentifier, &scanItem.iOneOff)
 
-		err := rows.Scan(&order.ID, &order.Identifier, &order.Timestamp, &order.State, &item.Quantity, &item.Item.ID, &item.Item.Name, &item.Item.Price, &item.Item.Image, &item.Item.Available, &item.Item.Identifier, &item.Item.IsOneOff)
 		if err != nil {
 			return []model.Order{}, fmt.Errorf("Failed to scan row: %w", err)
 		}
@@ -170,6 +183,23 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 		_, exists := orderMap[order.ID]
 		if !exists {
 			orderMap[order.ID] = order
+		}
+
+		if scanItem.iQuantity == nil {
+			continue
+		}
+
+		item = model.OrderItem{
+			Quantity: *scanItem.iQuantity,
+			Item: &model.Item{
+				ID:         *scanItem.iId,
+				Name:       *scanItem.iName,
+				Price:      *scanItem.iPrice,
+				Image:      *scanItem.iImage,
+				Available:  *scanItem.iAvailable,
+				Identifier: *scanItem.iIdentifier,
+				IsOneOff:   *scanItem.iOneOff,
+			},
 		}
 
 		l, exists := orderItemMap[order.ID]
@@ -182,9 +212,9 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 
 	orderCustomItemQuery := `SELECT orders.id, orders_custom_items_link.quantity, custom_item.id, custom_item.name, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
 		FROM orders
-		INNER JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id
-		INNER JOIN custom_item ON orders_custom_items_link.custom_item_id=custom_item.id
-		INNER JOIN item ON orders_custom_items_link.item_id=item.id`
+		LEFT JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id
+		LEFT JOIN custom_item ON orders_custom_items_link.custom_item_id=custom_item.id
+		LEFT JOIN item ON orders_custom_items_link.item_id=item.id`
 	orderCustomItemQueryArgs := []any{}
 
 	if options != nil {
@@ -201,6 +231,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 	for orderCustomItem.Next() {
 		var order int
 		var customItem model.OrderCustomItem
+		customItem.CustomItem = &model.CustomItem{}
 		var item model.Item
 
 		err := orderCustomItem.Scan(&order, &customItem.Quantity, &customItem.CustomItem.ID, &customItem.CustomItem.Name, &customItem.CustomItem.Exclusive, &item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
@@ -252,10 +283,31 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 		}
 		res = append(res, order)
 	}
+	if options != nil && options.SortAsc != nil {
+		slices.SortFunc(res, func(a, b model.Order) int {
+
+			aTime, e := time.Parse(time.RFC3339, a.Timestamp)
+			if e != nil {
+				log.Printf("ERROR time %s COULD NOT BE PARSED! THERE WILL LIKELY BE STRANGE BEHAVIORS: %w", a.Timestamp, e)
+			}
+
+			bTime, e := time.Parse(time.RFC3339, b.Timestamp)
+			if e != nil {
+				log.Printf("ERROR time %s COULD NOT BE PARSED! THERE WILL LIKELY BE STRANGE BEHAVIORS: %w", b.Timestamp, e)
+			}
+
+			res := aTime.Compare(bTime)
+			if !*options.SortAsc {
+				res *= -1
+			}
+
+			return res
+		})
+	}
+	log.Printf("res[]: %d\n", len(res))
 	return res, nil
 }
 func PrepareQueryOrdersWithOptions(query string, args []any, options OrderQueryOptions) (string, []any) {
-
 	if options.FilterIds != nil || options.State != nil {
 		query += " WHERE"
 	}

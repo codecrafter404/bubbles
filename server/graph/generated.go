@@ -112,7 +112,7 @@ type ComplexityRoot struct {
 
 	Subscription struct {
 		NextOrder func(childComplexity int) int
-		Orders    func(childComplexity int, state *model.OrderState, id *int, limit *int, skip *int) int
+		Orders    func(childComplexity int, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) int
 		Stats     func(childComplexity int) int
 		Updates   func(childComplexity int) int
 	}
@@ -134,7 +134,7 @@ type QueryResolver interface {
 	GetCustomItems(ctx context.Context) ([]*model.CustomItem, error)
 }
 type SubscriptionResolver interface {
-	Orders(ctx context.Context, state *model.OrderState, id *int, limit *int, skip *int) (<-chan []*model.Order, error)
+	Orders(ctx context.Context, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) (<-chan []*model.Order, error)
 	NextOrder(ctx context.Context) (<-chan *model.Order, error)
 	Updates(ctx context.Context) (<-chan *model.UpdateEvent, error)
 	Stats(ctx context.Context) (<-chan *model.Statistics, error)
@@ -475,7 +475,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Subscription.Orders(childComplexity, args["state"].(*model.OrderState), args["id"].(*int), args["limit"].(*int), args["skip"].(*int)), true
+		return e.complexity.Subscription.Orders(childComplexity, args["state"].(*model.OrderState), args["id"].(*int), args["limit"].(*int), args["skip"].(*int), args["sortAsc"].(*bool)), true
 
 	case "Subscription.stats":
 		if e.complexity.Subscription.Stats == nil {
@@ -840,6 +840,15 @@ func (ec *executionContext) field_Subscription_orders_args(ctx context.Context, 
 		}
 	}
 	args["skip"] = arg3
+	var arg4 *bool
+	if tmp, ok := rawArgs["sortAsc"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sortAsc"))
+		arg4, err = ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["sortAsc"] = arg4
 	return args, nil
 }
 
@@ -1514,14 +1523,11 @@ func (ec *executionContext) _Mutation_updateOrder(ctx context.Context, field gra
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
 	res := resTmp.(*model.Order)
 	fc.Result = res
-	return ec.marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
+	return ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_updateOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2456,14 +2462,11 @@ func (ec *executionContext) _Query_getOrder(ctx context.Context, field graphql.C
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
 	res := resTmp.(*model.Order)
 	fc.Result = res
-	return ec.marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
+	return ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2897,7 +2900,7 @@ func (ec *executionContext) _Subscription_orders(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().Orders(rctx, fc.Args["state"].(*model.OrderState), fc.Args["id"].(*int), fc.Args["limit"].(*int), fc.Args["skip"].(*int))
+		return ec.resolvers.Subscription().Orders(rctx, fc.Args["state"].(*model.OrderState), fc.Args["id"].(*int), fc.Args["limit"].(*int), fc.Args["skip"].(*int), fc.Args["sortAsc"].(*bool))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5439,9 +5442,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateOrder(ctx, field)
 			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "deleteOrder":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteOrder(ctx, field)
@@ -5701,16 +5701,13 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getOrder":
 			field := field
 
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getOrder(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
 				return res
 			}
 

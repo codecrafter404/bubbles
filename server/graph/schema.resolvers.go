@@ -253,12 +253,33 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 
 // UpdateOrder is the resolver for the updateOrder field.
 func (r *mutationResolver) UpdateOrder(ctx context.Context, order int, state model.OrderState) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: UpdateOrder - updateOrder"))
+	_, err := r.Db.Exec("UPDATE orders SET state = ? WHERE id = ?", state, order)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to update order: %w", err)
+	}
+
+	options := utils.OrderQueryOptions{
+		FilterIds: &[]int{order},
+	}
+	res, err := utils.QueryOrders(r.Db, &options)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query order: %w", err)
+	}
+
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	return &res[0], nil
 }
 
 // DeleteOrder is the resolver for the deleteOrder field.
 func (r *mutationResolver) DeleteOrder(ctx context.Context, order int) (int, error) {
-	panic(fmt.Errorf("not implemented: DeleteOrder - deleteOrder"))
+	_, err := r.Db.Exec("DELETE FROM orders WHERE id = ?; DELETE FROM orders_custom_items_link WHERE order_id = ?; DELETE FROM orders_items_link WHERE order_id = ?", order, order, order)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to delete order: %w", err)
+	}
+	return order, nil
 }
 
 // UpdateItem is the resolver for the updateItem field.
@@ -516,7 +537,19 @@ func (r *queryResolver) GetPermission(ctx context.Context) (model.User, error) {
 
 // GetOrder is the resolver for the getOrder field.
 func (r *queryResolver) GetOrder(ctx context.Context, id int) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: GetOrder - getOrder"))
+	options := utils.OrderQueryOptions{
+		FilterIds: &[]int{id},
+	}
+	order, err := utils.QueryOrders(r.Db, &options)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query order: %w", err)
+	}
+
+	if len(order) == 0 {
+		return nil, nil
+	}
+
+	return &order[0], nil
 }
 
 // GetItems is the resolver for the getItems field.
@@ -553,7 +586,7 @@ func (r *queryResolver) GetCustomItems(ctx context.Context) ([]*model.CustomItem
 }
 
 // Orders is the resolver for the orders field.
-func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderState, id *int, limit *int, skip *int) (<-chan []*model.Order, error) {
+func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) (<-chan []*model.Order, error) {
 	panic(fmt.Errorf("not implemented: Orders - orders"))
 }
 

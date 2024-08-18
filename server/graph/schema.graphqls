@@ -134,7 +134,7 @@ input UpdateItem {
 
 type Mutation {
   createOrder(order: NewOrder!): Order!
-  updateOrder(order: Int!, state: OrderState!): Order!
+  updateOrder(order: Int!, state: OrderState!): Order
   "Only available to admins"
   deleteOrder(order: Int!): Int!
 
@@ -157,12 +157,12 @@ enum UpdateEvent {
 
 type Query {
   getPermission: User!
-  getOrder(id: Int!): Order!
+  getOrder(id: Int!): Order
   getItems: [Item!]!
   getCustomItems: [CustomItem!]!
 }
 type Subscription {
-  orders(state: OrderState, id: Int, limit: Int, skip: Int): [Order!]!
+  orders(state: OrderState, id: Int, limit: Int, skip: Int, sortAsc: Boolean): [Order!]!
   "The next order that should be worked on by the client"
   nextOrder: Order
   updates: UpdateEvent

@@ -14,5 +14,6 @@ import (
 type Resolver struct {
 	Db              *sql.DB
 	EventChannel    []chan *model.UpdateEvent
+	OrderChannel    []chan int
 	EventChannelMux sync.RWMutex
 }
