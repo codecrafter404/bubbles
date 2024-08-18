@@ -2,6 +2,8 @@
 #
 # https://gqlgen.com/getting-started/
 
+scalar Int64
+
 type Item {
   "Should be unique across items/customitems"
   id: Int!
@@ -92,7 +94,7 @@ input NewCustomItem {
 
 type Order {
   id: Int! 
-  timestamp: String!
+  timestamp: Int64!
   "A string generated sequencially to identifiy an OPEN order"
   identifier: String!
 

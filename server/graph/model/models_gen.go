@@ -85,8 +85,8 @@ type NewOrderItem struct {
 }
 
 type Order struct {
-	ID        int    `json:"id"`
-	Timestamp string `json:"timestamp"`
+	ID        int   `json:"id"`
+	Timestamp int64 `json:"timestamp"`
 	// A string generated sequencially to identifiy an OPEN order
 	Identifier  string             `json:"identifier"`
 	State       OrderState         `json:"state"`

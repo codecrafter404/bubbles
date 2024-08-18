@@ -3,8 +3,8 @@ package utils
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/codecrafter404/bubble/graph/model"
@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS custom_item_item_link(
 
 CREATE TABLE IF NOT EXISTS orders(
 	id INTEGER NOT NULL PRIMARY KEY,
-	timestamp TEXT NOT NULL,
+	total REAL NOT NULL,
+	timestamp INTEGER NOT NULL,
 	identifier TEXT NOT NULL,
 	state TEXT NOT NULL
 );
@@ -64,6 +65,7 @@ func QueryCustomItems(db *sql.DB) ([]model.CustomItem, error) {
 	rows, err := db.Query(`SELECT custom_item.id, custom_item.name, custom_item.depends_on, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
 		FROM custom_item INNER JOIN custom_item_item_link ON custom_item.id=custom_item_item_link.custom_item_id
 		INNER JOIN item ON custom_item_item_link.item_id=item.id`)
+	defer rows.Close()
 	if err != nil {
 		return []model.CustomItem{}, fmt.Errorf("Failed to query custom_items: %w", err)
 	}
@@ -78,6 +80,7 @@ func QueryCustomItem(db *sql.DB, id int) (*model.CustomItem, error) {
 		FROM custom_item INNER JOIN custom_item_item_link ON custom_item.id=custom_item_item_link.custom_item_id
 		INNER JOIN item ON custom_item_item_link.item_id=item.id
 		WHERE custom_item.id = ?`, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query custom_items: %w", err)
 	}
@@ -133,6 +136,38 @@ func parseCustomItemRows(rows *sql.Rows) ([]model.CustomItem, error) {
 	}
 	return res, nil
 }
+func QueryOrdersLimited(db *sql.DB, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) ([]*model.Order, error) {
+	opts := OrderQueryOptions{
+		SortAsc: sortAsc,
+		State:   state,
+	}
+	if id != nil {
+		opts.FilterIds = &[]int{*id}
+	}
+	orders, err := QueryOrders(db, &opts)
+	if err != nil {
+		return []*model.Order{}, fmt.Errorf("Failed to query db: %w", err)
+	}
+
+	skipped := 0
+	collected := 0
+
+	res := []*model.Order{}
+	for _, o := range orders {
+		if skip != nil && skipped < *skip {
+			skipped++
+			continue
+		}
+
+		if limit != nil && collected >= *limit {
+			break
+		}
+
+		res = append(res, &o)
+		collected++
+	}
+	return res, nil
+}
 
 type OrderQueryOptions struct {
 	// sort by time asc
@@ -142,7 +177,7 @@ type OrderQueryOptions struct {
 }
 
 func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) {
-	orderQuery := `SELECT orders.id, orders.identifier, orders.timestamp, orders.state, orders_items_link.quantity, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders
+	orderQuery := `SELECT orders.id, orders.total, orders.identifier, orders.timestamp, orders.state, orders_items_link.quantity, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders
 		LEFT JOIN orders_items_link ON orders.id=orders_items_link.order_id
 		LEFT JOIN item ON orders_items_link.item_id=item.id`
 
@@ -153,6 +188,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 	}
 
 	rows, err := db.Query(orderQuery, orderQueryArgs...)
+	defer rows.Close()
 
 	if err != nil {
 		return []model.Order{}, fmt.Errorf("Failed to query db: %w", err)
@@ -174,7 +210,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 			iIdentifier *string
 			iOneOff     *bool
 		}{}
-		err := rows.Scan(&order.ID, &order.Identifier, &order.Timestamp, &order.State, &scanItem.iQuantity, &scanItem.iId, &scanItem.iName, &scanItem.iPrice, &scanItem.iImage, &scanItem.iAvailable, &scanItem.iIdentifier, &scanItem.iOneOff)
+		err := rows.Scan(&order.ID, &order.Total, &order.Identifier, &order.Timestamp, &order.State, &scanItem.iQuantity, &scanItem.iId, &scanItem.iName, &scanItem.iPrice, &scanItem.iImage, &scanItem.iAvailable, &scanItem.iIdentifier, &scanItem.iOneOff)
 
 		if err != nil {
 			return []model.Order{}, fmt.Errorf("Failed to scan row1: %w", err)
@@ -222,6 +258,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 	}
 
 	orderCustomItem, err := db.Query(orderCustomItemQuery, orderCustomItemQueryArgs...)
+	defer orderCustomItem.Close()
 
 	if err != nil {
 		return []model.Order{}, fmt.Errorf("Failed to query orderItems: %w", err)
@@ -286,15 +323,8 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 	if options != nil && options.SortAsc != nil {
 		slices.SortFunc(res, func(a, b model.Order) int {
 
-			aTime, e := time.Parse(time.RFC3339, a.Timestamp)
-			if e != nil {
-				log.Printf("ERROR time %s COULD NOT BE PARSED! THERE WILL LIKELY BE STRANGE BEHAVIORS: %w", a.Timestamp, e)
-			}
-
-			bTime, e := time.Parse(time.RFC3339, b.Timestamp)
-			if e != nil {
-				log.Printf("ERROR time %s COULD NOT BE PARSED! THERE WILL LIKELY BE STRANGE BEHAVIORS: %w", b.Timestamp, e)
-			}
+			aTime := time.UnixMicro(a.Timestamp)
+			bTime := time.UnixMicro(b.Timestamp)
 
 			res := aTime.Compare(bTime)
 			if !*options.SortAsc {
@@ -304,7 +334,6 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 			return res
 		})
 	}
-	log.Printf("res[]: %d\n", len(res))
 	return res, nil
 }
 func PrepareQueryOrdersWithOptions(query string, args []any, options OrderQueryOptions) (string, []any) {
@@ -335,6 +364,62 @@ func PrepareQueryOrdersWithOptions(query string, args []any, options OrderQueryO
 		query += "orders.state = ?"
 		args = append(args, options.State)
 	}
-	fmt.Printf("Query: %s; Args: %+v\n", query, args)
 	return query, args
+}
+func GetIdentifier(db *sql.DB, max int) (int, error) {
+	res, err := db.Query("SELECT identifier FROM orders ORDER BY timestamp DESC LIMIT 1")
+	defer res.Close()
+	if err != nil {
+		return 0, fmt.Errorf("Failed to getIdentifier: %w", err)
+	}
+	has := res.Next()
+	defer res.Close()
+	if !has {
+		return 1, nil
+	}
+	var snum string
+	scanErr := res.Scan(&snum)
+	if scanErr != nil {
+		return 0, fmt.Errorf("Failed to scan identifier: %w", err)
+	}
+	num, err := strconv.Atoi(snum)
+	if err != nil {
+		return 0, fmt.Errorf("Invalid db state, expected number as identifier, got %s: %w", snum, err)
+	}
+
+	num++
+	if num > max {
+		num = 1
+	}
+
+	return num, nil
+}
+func GetStats(db *sql.DB) (model.Statistics, error) {
+	stateRow, err := db.Query("SELECT SUM(total), COUNT(*) FROM orders WHERE state = ?", model.OrderStateCompleated)
+	defer stateRow.Close()
+	if err != nil {
+		return model.Statistics{}, fmt.Errorf("Failed to query stateRow: %w", err)
+	}
+	var stats model.Statistics
+	var totalEarned *float64
+	eErr := stateRow.Scan(&totalEarned, &stats.TotalOrdersCompleated)
+	if eErr != nil {
+		return model.Statistics{}, fmt.Errorf("Failed to scan stateRows: %w", eErr)
+	}
+	if totalEarned == nil {
+		stats.TotalEarned = 0
+	} else {
+		stats.TotalEarned = *totalEarned
+	}
+
+	totalRows, err := db.Query("SELECT COUNT(*) FROM orders")
+	defer totalRows.Close()
+	if err != nil {
+		return model.Statistics{}, fmt.Errorf("Failed to query totalRows: %w", err)
+	}
+	tErr := totalRows.Scan(&stats.TotalOrders)
+	if tErr != nil {
+		return model.Statistics{}, fmt.Errorf("Failed to scan totalRows: %w", tErr)
+	}
+	return stats, nil
 }

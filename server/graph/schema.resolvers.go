@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/codecrafter404/bubble/graph/model"
@@ -68,6 +69,7 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 		}
 
 		itemRows, err := r.Db.Query(itemQuery, itemArgs...)
+		defer itemRows.Close()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to query items: %w", err)
 		}
@@ -174,15 +176,20 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 
 	}
 
+	identifier, err := utils.GetIdentifier(r.Db, 100)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to find identifier: %w", err)
+	}
+
+	id := rand.Intn(999999999)
+
 	tx, err := r.Db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 
-	id := rand.Intn(999999999)
-	identifier := fmt.Sprintf("%d", rand.Intn(100))
-	cTime := time.Now().Format(time.RFC3339)
-	_, exErr := tx.Exec("INSERT INTO orders (id, timestamp, identifier, state) VALUES (?, ?, ?, ?)", id, cTime, identifier, model.OrderStateCreated)
+	cTime := time.Now().UnixMicro()
+	_, exErr := tx.Exec("INSERT INTO orders (id, timestamp, identifier, state, total) VALUES (?, ?, ?, ?, ?)", id, cTime, identifier, model.OrderStateCreated, order.Total)
 	if exErr != nil {
 		return nil, fmt.Errorf("Failed to insert order: %w", exErr)
 	}
@@ -241,12 +248,26 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 	resOrder := model.Order{
 		ID:          id,
 		Timestamp:   cTime,
-		Identifier:  identifier,
+		Identifier:  strconv.Itoa(identifier),
 		State:       model.OrderStateCreated,
 		Total:       order.Total,
 		CustomItems: resCustomItems,
 		Items:       resItems,
 	}
+
+	r.OrderChannelMux.RLock()
+
+	for _, c := range r.OrderChannel {
+		select {
+		case c <- id:
+			break
+		default:
+			log.Println("Failed to order event to channel (create)")
+			break
+		}
+	}
+
+	r.OrderChannelMux.RUnlock()
 
 	return &resOrder, nil
 }
@@ -270,15 +291,45 @@ func (r *mutationResolver) UpdateOrder(ctx context.Context, order int, state mod
 		return nil, nil
 	}
 
+	r.OrderChannelMux.RLock()
+
+	for _, c := range r.OrderChannel {
+		select {
+		case c <- res[0].ID:
+			break
+		default:
+			log.Println("Failed to order event to channel (update)")
+			break
+		}
+	}
+
+	r.OrderChannelMux.RUnlock()
 	return &res[0], nil
 }
 
 // DeleteOrder is the resolver for the deleteOrder field.
 func (r *mutationResolver) DeleteOrder(ctx context.Context, order int) (int, error) {
-	_, err := r.Db.Exec("DELETE FROM orders WHERE id = ?; DELETE FROM orders_custom_items_link WHERE order_id = ?; DELETE FROM orders_items_link WHERE order_id = ?", order, order, order)
+	res, err := r.Db.Exec("DELETE FROM orders WHERE id = ?; DELETE FROM orders_custom_items_link WHERE order_id = ?; DELETE FROM orders_items_link WHERE order_id = ?", order, order, order)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to delete order: %w", err)
 	}
+
+	if res, err := res.RowsAffected(); err == nil && res >= 0 {
+		r.OrderChannelMux.RLock()
+
+		for _, c := range r.OrderChannel {
+			select {
+			case c <- order:
+				break
+			default:
+				log.Println("Failed to order event to channel (delete)")
+				break
+			}
+		}
+
+		r.OrderChannelMux.RUnlock()
+	}
+
 	return order, nil
 }
 
@@ -480,6 +531,7 @@ func (r *mutationResolver) CreateCustomItems(ctx context.Context, items []*model
 	itemIds := []int{}
 
 	rows, err := r.Db.Query("SELECT id FROM item WHERE oneoff == 0")
+	defer rows.Close()
 	if err != nil {
 		return []int{}, fmt.Errorf("Failed to query existing item ids for dependency check: %w", err)
 	}
@@ -591,6 +643,7 @@ func (r *queryResolver) GetOrder(ctx context.Context, id int) (*model.Order, err
 // GetItems is the resolver for the getItems field.
 func (r *queryResolver) GetItems(ctx context.Context) ([]*model.Item, error) {
 	rows, err := r.Db.Query("SELECT id, name, price, image, available, identifier, oneoff FROM item")
+	defer rows.Close()
 	if err != nil {
 		return []*model.Item{}, fmt.Errorf("Failed to query db: %w", err)
 	}
@@ -623,7 +676,7 @@ func (r *queryResolver) GetCustomItems(ctx context.Context) ([]*model.CustomItem
 
 // Orders is the resolver for the orders field.
 func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) (<-chan []*model.Order, error) {
-	resChannel := make(chan []*model.Order)
+	resChannel := make(chan []*model.Order, 7)
 	orderChannel := make(chan int, 7)
 
 	r.OrderChannelMux.RLock()
@@ -631,32 +684,49 @@ func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderSta
 	r.OrderChannelMux.RUnlock()
 
 	go func() {
+
+		cleanup := func() {
+
+			r.OrderChannelMux.Lock()
+			res := []chan int{}
+			for _, c := range r.OrderChannel {
+				if c != orderChannel {
+					res = append(res, c)
+				}
+			}
+			r.OrderChannel = res
+			r.OrderChannelMux.Unlock()
+			close(orderChannel)
+			close(resChannel)
+			log.Println("Cleaning up orders subscription")
+		}
+
+		fRes, err := utils.QueryOrdersLimited(r.Db, state, id, limit, skip, sortAsc)
+		if err != nil {
+			log.Println(fmt.Sprintf("ERROR: %s", err))
+			cleanup()
+			return
+		}
+		resChannel <- fRes
+
+	loop:
 		for {
 			select {
 			case <-ctx.Done():
-				break
-			case <-orderChannel:
-				opts := utils.OrderQueryOptions{
-					SortAsc: sortAsc,
-					State:   state,
-				}
-				if id != nil {
-					opts.FilterIds = &[]int{*id}
-				}
-				orders, err := utils.QueryOrders(r.Db, &opts)
+				break loop
+			case x := <-orderChannel:
+				_ = x
+
+				res, err := utils.QueryOrdersLimited(r.Db, state, id, limit, skip, sortAsc)
 				if err != nil {
-					log.Println("ERROR: Failed to query db: %w", err)
+					log.Println(fmt.Sprintf("ERROR: %s", err))
 					break
 				}
-				aSkip := 0
-				if skip != nil {
-					aSkip = *skip
-				}
-
-				for i, o := range orders {
-				}
+				resChannel <- res
 			}
 		}
+		cleanup()
+
 	}()
 	return resChannel, nil
 }
@@ -693,8 +763,7 @@ func (r *subscriptionResolver) Updates(ctx context.Context) (<-chan *model.Updat
 				close(channel)
 				close(resChannel)
 				return
-			case <-channel:
-				x := <-channel
+			case x := <-channel:
 				resChannel <- x
 			}
 		}
