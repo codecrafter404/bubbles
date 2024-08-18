@@ -131,10 +131,26 @@ func parseCustomItemRows(rows *sql.Rows) ([]model.CustomItem, error) {
 	return res, nil
 }
 
-func QueryOrders(db *sql.DB) ([]model.Order, error) {
-	rows, err := db.Query(`SELECT orders.id, orders.identifier, orders.timestamp, orders.state, orders_items_link.quantity, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders
+type OrderQueryOptions struct {
+	// sort by time asc
+	SortAsc   *bool
+	FilterIds *[]int
+	State     *model.OrderState
+}
+
+func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) {
+	orderQuery := `SELECT orders.id, orders.identifier, orders.timestamp, orders.state, orders_items_link.quantity, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders
 		INNER JOIN orders_items_link ON orders.id=orders_items_link.order_id
-		INNER JOIN item ON orders_items_link.item_id=item.id`)
+		INNER JOIN item ON orders_items_link.item_id=item.id`
+
+	orderQueryArgs := []any{}
+
+	if options != nil {
+		orderQuery, orderQueryArgs = PrepareQueryOrdersWithOptions(orderQuery, orderQueryArgs, *options)
+	}
+
+	rows, err := db.Query(orderQuery, orderQueryArgs...)
+
 	if err != nil {
 		return []model.Order{}, fmt.Errorf("Failed to query db: %w", err)
 	}
@@ -164,6 +180,109 @@ func QueryOrders(db *sql.DB) ([]model.Order, error) {
 		}
 	}
 
-	//TODO: SELECT orders.id, orders_custom_items_link.quantity, custom_item.id, custom_item.name, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders INNER JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id INNER JOIN custom_item ON orders_custom_items_link.custom_item_id=custom_item.id INNER JOIN item ON orders_custom_items_link.item_id=item.id
-	panic("")
+	orderCustomItemQuery := `SELECT orders.id, orders_custom_items_link.quantity, custom_item.id, custom_item.name, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
+		FROM orders
+		INNER JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id
+		INNER JOIN custom_item ON orders_custom_items_link.custom_item_id=custom_item.id
+		INNER JOIN item ON orders_custom_items_link.item_id=item.id`
+	orderCustomItemQueryArgs := []any{}
+
+	if options != nil {
+		orderCustomItemQuery, orderCustomItemQueryArgs = PrepareQueryOrdersWithOptions(orderCustomItemQuery, orderCustomItemQueryArgs, *options)
+	}
+
+	orderCustomItem, err := db.Query(orderCustomItemQuery, orderCustomItemQueryArgs...)
+
+	if err != nil {
+		return []model.Order{}, fmt.Errorf("Failed to query orderItems: %w", err)
+	}
+
+	customItemMap := make(map[int][]model.OrderCustomItem)
+	for orderCustomItem.Next() {
+		var order int
+		var customItem model.OrderCustomItem
+		var item model.Item
+
+		err := orderCustomItem.Scan(&order, &customItem.Quantity, &customItem.CustomItem.ID, &customItem.CustomItem.Name, &customItem.CustomItem.Exclusive, &item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
+		if err != nil {
+			return []model.Order{}, fmt.Errorf("Failed to scan row: %w", err)
+		}
+
+		x, exists := customItemMap[order]
+		if !exists {
+			customItem.CustomItem.Variants = append(customItem.CustomItem.Variants, &item)
+			customItemMap[order] = []model.OrderCustomItem{customItem}
+			continue
+		}
+
+		found := false
+
+		res := []model.OrderCustomItem{}
+
+		for _, i := range x {
+			if i.CustomItem.ID == customItem.CustomItem.ID && i.Quantity == customItem.Quantity {
+				found = true
+				i.CustomItem.Variants = append(i.CustomItem.Variants, &item)
+			}
+			res = append(res, i)
+		}
+
+		if !found {
+			customItem.CustomItem.Variants = append(customItem.CustomItem.Variants, &item)
+			res = append(res, customItem)
+		}
+
+		customItemMap[order] = res
+	}
+	res := []model.Order{}
+	for orderId, order := range orderMap {
+		if items, exists := orderItemMap[orderId]; exists {
+			resItems := []*model.OrderItem{}
+			for _, x := range items {
+				resItems = append(resItems, &x)
+			}
+			order.Items = resItems
+		}
+		if cItems, exists := customItemMap[orderId]; exists {
+			resItems := []*model.OrderCustomItem{}
+			for _, x := range cItems {
+				resItems = append(resItems, &x)
+			}
+			order.CustomItems = resItems
+		}
+		res = append(res, order)
+	}
+	return res, nil
+}
+func PrepareQueryOrdersWithOptions(query string, args []any, options OrderQueryOptions) (string, []any) {
+
+	if options.FilterIds != nil || options.State != nil {
+		query += " WHERE"
+	}
+	first := true
+	if options.FilterIds != nil {
+		for _, x := range *options.FilterIds {
+			query += " "
+			if !first {
+				query += "&& "
+			} else {
+				first = false
+			}
+			query += "orders.id = ?"
+			args = append(args, x)
+		}
+	}
+	if options.State != nil {
+		query += " "
+		if !first {
+			query += "&& "
+		} else {
+			first = false
+		}
+
+		query += "orders.state = ?"
+		args = append(args, options.State)
+	}
+	fmt.Printf("Query: %s; Args: %+v\n", query, args)
+	return query, args
 }
