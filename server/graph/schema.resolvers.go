@@ -743,7 +743,23 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 	resChannel := make(chan *model.Order, 7)
 	go func() {
 
-		cleanup := func() {
+		notifyUpdate := func(id int) {
+			r.OrderChannelMux.RLock()
+
+			for _, c := range r.OrderChannel {
+				select {
+				case c <- id:
+					break
+				default:
+					log.Println("Failed to order event to channel (subscription)")
+					break
+				}
+			}
+
+			r.OrderChannelMux.RUnlock()
+
+		}
+		cleanup := func(order *model.Order) {
 			r.OrderChannelMux.Lock()
 			res := []chan int{}
 			for _, c := range r.OrderChannel {
@@ -755,15 +771,32 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 			r.OrderChannelMux.Unlock()
 			close(channel)
 			close(resChannel)
+			if order != nil {
+				_, err := r.Db.Exec("UPDATE orders SET state = IIF(state = ?, ?, state) WHERE id = ?", model.OrderStatePending, model.OrderStateCreated, order.ID)
+				if err != nil {
+					log.Printf("Failed to update order refrain %d: %v", order.ID, err)
+				} else {
+					notifyUpdate(order.ID)
+				}
+			}
 
 		}
 
-		order, err := utils.GetNextOrder(r.Db, &r.OrderNextMux)
+		r.OrderNextMux.Lock()
+		order, err := utils.GetNextOrder(r.Db)
+
 		if err != nil {
 			log.Printf("ERROR: Failed to query next order: %v\n", err)
-			cleanup()
+			cleanup(order)
 			return
 		}
+
+		r.OrderNextMux.Unlock()
+		if order != nil {
+			log.Printf("Got order %d\n", order.ID)
+			notifyUpdate(order.ID)
+		}
+		log.Println("Checking for updates")
 
 		resChannel <- order
 
@@ -773,7 +806,10 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 			case <-ctx.Done():
 				break loop
 			case x := <-channel:
-				_ = x
+				log.Printf("got event %d\n", x)
+				if order != nil && x != order.ID {
+					continue
+				}
 
 				if order != nil {
 					opts := utils.OrderQueryOptions{
@@ -785,21 +821,33 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 						break loop
 					}
 					if len(orders) == 1 && (orders[0].State == model.OrderStatePending || orders[0].State == model.OrderStateCreated) {
+						order = &orders[0]
 						resChannel <- &orders[0]
+						continue
+					} else if len(orders) == 0 {
+						order = nil
 					}
 				}
 
-				order, err := utils.GetNextOrder(r.Db, &r.OrderNextMux)
+				r.OrderNextMux.Lock()
+				order, err = utils.GetNextOrder(r.Db)
+
 				if err != nil {
 					log.Printf("ERROR: Failed to query next order: %v\n", err)
 					break loop
+				}
+
+				r.OrderNextMux.Unlock()
+
+				if order != nil {
+					notifyUpdate(order.ID)
 				}
 
 				resChannel <- order
 			}
 		}
 
-		cleanup()
+		cleanup(order)
 	}()
 	return resChannel, nil
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/codecrafter404/bubble/graph/model"
@@ -419,7 +418,7 @@ func GetStats(db *sql.DB) (model.Statistics, error) {
 	var stats model.Statistics
 	var totalEarned *float64
 	if !stateRow.Next() {
-		return model.Statistics{}, fmt.Errorf("Expected to get one row; got none")
+		return model.Statistics{TotalEarned: 0, TotalOrders: 0, TotalOrdersCompleated: 0}, nil
 	}
 	eErr := stateRow.Scan(&totalEarned, &stats.TotalOrdersCompleated)
 	if eErr != nil {
@@ -435,7 +434,7 @@ func GetStats(db *sql.DB) (model.Statistics, error) {
 	defer totalRows.Close()
 
 	if !totalRows.Next() {
-		return model.Statistics{}, fmt.Errorf("Expected to get one row; got none")
+		return model.Statistics{TotalEarned: 0, TotalOrders: 0, TotalOrdersCompleated: 0}, nil
 	}
 
 	if err != nil {
@@ -449,9 +448,9 @@ func GetStats(db *sql.DB) (model.Statistics, error) {
 	return stats, nil
 }
 
-func GetNextOrder(db *sql.DB, lock *sync.Mutex) (*model.Order, error) {
-	lock.Lock()
+func GetNextOrder(db *sql.DB) (*model.Order, error) {
 	tx, err := db.Begin()
+	defer tx.Commit()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to lock db: %w", err)
 	}
@@ -496,8 +495,6 @@ func GetNextOrder(db *sql.DB, lock *sync.Mutex) (*model.Order, error) {
 	if tErr != nil {
 		return nil, fmt.Errorf("Failed to commit transaction: %w", tErr)
 	}
-
-	lock.Unlock()
 
 	return &order[0], nil
 }
