@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/codecrafter404/bubble/graph/model"
@@ -176,7 +177,7 @@ type OrderQueryOptions struct {
 	State     *model.OrderState
 }
 
-func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) {
+func queryOrdersTransaction(tx *sql.Tx, options *OrderQueryOptions) ([]model.Order, error) {
 	orderQuery := `SELECT orders.id, orders.total, orders.identifier, orders.timestamp, orders.state, orders_items_link.quantity, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff FROM orders
 		LEFT JOIN orders_items_link ON orders.id=orders_items_link.order_id
 		LEFT JOIN item ON orders_items_link.item_id=item.id`
@@ -187,7 +188,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 		orderQuery, orderQueryArgs = PrepareQueryOrdersWithOptions(orderQuery, orderQueryArgs, *options)
 	}
 
-	rows, err := db.Query(orderQuery, orderQueryArgs...)
+	rows, err := tx.Query(orderQuery, orderQueryArgs...)
 	defer rows.Close()
 
 	if err != nil {
@@ -257,7 +258,7 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 		orderCustomItemQuery, orderCustomItemQueryArgs = PrepareQueryOrdersWithOptions(orderCustomItemQuery, orderCustomItemQueryArgs, *options)
 	}
 
-	orderCustomItem, err := db.Query(orderCustomItemQuery, orderCustomItemQueryArgs...)
+	orderCustomItem, err := tx.Query(orderCustomItemQuery, orderCustomItemQueryArgs...)
 	defer orderCustomItem.Close()
 
 	if err != nil {
@@ -336,6 +337,21 @@ func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) 
 	}
 	return res, nil
 }
+func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return []model.Order{}, fmt.Errorf("Failed to begin transaction: %w", err)
+	}
+	res, err := queryOrdersTransaction(tx, options)
+	if err != nil {
+		return []model.Order{}, fmt.Errorf("Failed to query orders: %w", err)
+	}
+	tErr := tx.Commit()
+	if tErr != nil {
+		return []model.Order{}, fmt.Errorf("Failed to commit transaction: %w", tErr)
+	}
+	return res, nil
+}
 func PrepareQueryOrdersWithOptions(query string, args []any, options OrderQueryOptions) (string, []any) {
 	if options.FilterIds != nil || options.State != nil {
 		query += " WHERE"
@@ -402,6 +418,9 @@ func GetStats(db *sql.DB) (model.Statistics, error) {
 	}
 	var stats model.Statistics
 	var totalEarned *float64
+	if !stateRow.Next() {
+		return model.Statistics{}, fmt.Errorf("Expected to get one row; got none")
+	}
 	eErr := stateRow.Scan(&totalEarned, &stats.TotalOrdersCompleated)
 	if eErr != nil {
 		return model.Statistics{}, fmt.Errorf("Failed to scan stateRows: %w", eErr)
@@ -414,12 +433,71 @@ func GetStats(db *sql.DB) (model.Statistics, error) {
 
 	totalRows, err := db.Query("SELECT COUNT(*) FROM orders")
 	defer totalRows.Close()
+
+	if !totalRows.Next() {
+		return model.Statistics{}, fmt.Errorf("Expected to get one row; got none")
+	}
+
 	if err != nil {
 		return model.Statistics{}, fmt.Errorf("Failed to query totalRows: %w", err)
 	}
+
 	tErr := totalRows.Scan(&stats.TotalOrders)
 	if tErr != nil {
 		return model.Statistics{}, fmt.Errorf("Failed to scan totalRows: %w", tErr)
 	}
 	return stats, nil
+}
+
+func GetNextOrder(db *sql.DB, lock *sync.Mutex) (*model.Order, error) {
+	lock.Lock()
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to lock db: %w", err)
+	}
+
+	res, err := tx.Query("SELECT id FROM orders WHERE state = ? ORDER BY timestamp ASC LIMIT 1", model.OrderStateCreated)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query orders")
+	}
+	defer res.Close()
+
+	var id *int
+
+	if res.Next() {
+		err := res.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to scan id: %w", err)
+		}
+	}
+	if id == nil {
+		return nil, nil // no order available
+	}
+
+	_, eErr := tx.Exec("UPDATE orders SET state = ? WHERE id = ?", model.OrderStatePending, id)
+	if eErr != nil {
+		return nil, fmt.Errorf("Failed to update order state: %w", eErr)
+	}
+
+	opts := OrderQueryOptions{
+		FilterIds: &[]int{*id},
+	}
+
+	order, err := queryOrdersTransaction(tx, &opts)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query order: %w", err)
+	}
+
+	if len(order) != 1 {
+		return nil, fmt.Errorf("Failed to query order: order has been deleted?")
+	}
+
+	tErr := tx.Commit()
+	if tErr != nil {
+		return nil, fmt.Errorf("Failed to commit transaction: %w", tErr)
+	}
+
+	lock.Unlock()
+
+	return &order[0], nil
 }

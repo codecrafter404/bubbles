@@ -19,4 +19,5 @@ type Resolver struct {
 
 	OrderChannel    []chan int
 	OrderChannelMux sync.RWMutex
+	OrderNextMux    sync.Mutex
 }

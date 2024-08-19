@@ -698,7 +698,6 @@ func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderSta
 			r.OrderChannelMux.Unlock()
 			close(orderChannel)
 			close(resChannel)
-			log.Println("Cleaning up orders subscription")
 		}
 
 		fRes, err := utils.QueryOrdersLimited(r.Db, state, id, limit, skip, sortAsc)
@@ -720,7 +719,7 @@ func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderSta
 				res, err := utils.QueryOrdersLimited(r.Db, state, id, limit, skip, sortAsc)
 				if err != nil {
 					log.Println(fmt.Sprintf("ERROR: %s", err))
-					break
+					break loop
 				}
 				resChannel <- res
 			}
@@ -733,7 +732,76 @@ func (r *subscriptionResolver) Orders(ctx context.Context, state *model.OrderSta
 
 // NextOrder is the resolver for the nextOrder field.
 func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Order, error) {
-	panic(fmt.Errorf("not implemented: NextOrder - nextOrder"))
+	channel := make(chan int, 7)
+
+	r.OrderChannelMux.Lock()
+
+	r.OrderChannel = append(r.OrderChannel, channel)
+
+	r.OrderChannelMux.Unlock()
+
+	resChannel := make(chan *model.Order, 7)
+	go func() {
+
+		cleanup := func() {
+			r.OrderChannelMux.Lock()
+			res := []chan int{}
+			for _, c := range r.OrderChannel {
+				if c != channel {
+					res = append(res, c)
+				}
+			}
+			r.OrderChannel = res
+			r.OrderChannelMux.Unlock()
+			close(channel)
+			close(resChannel)
+
+		}
+
+		order, err := utils.GetNextOrder(r.Db, &r.OrderNextMux)
+		if err != nil {
+			log.Printf("ERROR: Failed to query next order: %v\n", err)
+			cleanup()
+			return
+		}
+
+		resChannel <- order
+
+	loop:
+		for {
+			select {
+			case <-ctx.Done():
+				break loop
+			case x := <-channel:
+				_ = x
+
+				if order != nil {
+					opts := utils.OrderQueryOptions{
+						FilterIds: &[]int{order.ID},
+					}
+					orders, err := utils.QueryOrders(r.Db, &opts)
+					if err != nil {
+						log.Printf("ERROR: Failed to query order: %v\n", err)
+						break loop
+					}
+					if len(orders) == 1 && (orders[0].State == model.OrderStatePending || orders[0].State == model.OrderStateCreated) {
+						resChannel <- &orders[0]
+					}
+				}
+
+				order, err := utils.GetNextOrder(r.Db, &r.OrderNextMux)
+				if err != nil {
+					log.Printf("ERROR: Failed to query next order: %v\n", err)
+					break loop
+				}
+
+				resChannel <- order
+			}
+		}
+
+		cleanup()
+	}()
+	return resChannel, nil
 }
 
 // Updates is the resolver for the updates field.
@@ -774,7 +842,59 @@ func (r *subscriptionResolver) Updates(ctx context.Context) (<-chan *model.Updat
 
 // Stats is the resolver for the stats field.
 func (r *subscriptionResolver) Stats(ctx context.Context) (<-chan *model.Statistics, error) {
-	panic(fmt.Errorf("not implemented: Stats - stats"))
+	resChannel := make(chan *model.Statistics, 7)
+	orderChannel := make(chan int, 7)
+
+	r.OrderChannelMux.RLock()
+	r.OrderChannel = append(r.OrderChannel, orderChannel)
+	r.OrderChannelMux.RUnlock()
+
+	go func() {
+
+		cleanup := func() {
+
+			r.OrderChannelMux.Lock()
+			res := []chan int{}
+			for _, c := range r.OrderChannel {
+				if c != orderChannel {
+					res = append(res, c)
+				}
+			}
+			r.OrderChannel = res
+			r.OrderChannelMux.Unlock()
+			close(orderChannel)
+			close(resChannel)
+		}
+		stats, err := utils.GetStats(r.Db)
+		if err != nil {
+			log.Printf("Failed to query stats: %v\n", err)
+			cleanup()
+			return
+		}
+
+		resChannel <- &stats
+
+	loop:
+		for {
+			select {
+			case <-ctx.Done():
+				break loop
+			case x := <-orderChannel:
+				_ = x
+
+				stats, err := utils.GetStats(r.Db)
+				if err != nil {
+					log.Printf("Failed to query stats: %v\n", err)
+					break loop
+				}
+
+				resChannel <- &stats
+			}
+		}
+		cleanup()
+
+	}()
+	return resChannel, nil
 }
 
 // Mutation returns MutationResolver implementation.
