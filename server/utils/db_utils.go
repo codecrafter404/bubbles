@@ -338,6 +338,8 @@ func queryOrdersTransaction(tx *sql.Tx, options *OrderQueryOptions) ([]model.Ord
 }
 func QueryOrders(db *sql.DB, options *OrderQueryOptions) ([]model.Order, error) {
 	tx, err := db.Begin()
+	defer tx.Rollback()
+
 	if err != nil {
 		return []model.Order{}, fmt.Errorf("Failed to begin transaction: %w", err)
 	}
@@ -450,11 +452,10 @@ func GetStats(db *sql.DB) (model.Statistics, error) {
 
 func GetNextOrder(db *sql.DB) (*model.Order, error) {
 	tx, err := db.Begin()
-	defer tx.Commit()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to lock db: %w", err)
 	}
-
+	defer tx.Rollback()
 	res, err := tx.Query("SELECT id FROM orders WHERE state = ? ORDER BY timestamp ASC LIMIT 1", model.OrderStateCreated)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query orders")
@@ -470,6 +471,10 @@ func GetNextOrder(db *sql.DB) (*model.Order, error) {
 		}
 	}
 	if id == nil {
+		tErr := tx.Commit()
+		if tErr != nil {
+			return nil, fmt.Errorf("Failed to commit transaction: %w", tErr)
+		}
 		return nil, nil // no order available
 	}
 

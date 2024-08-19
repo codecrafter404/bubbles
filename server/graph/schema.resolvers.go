@@ -778,20 +778,22 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 				} else {
 					notifyUpdate(order.ID)
 				}
-			}
 
+			}
+			r.OrderNextMux.TryLock()
+			r.OrderNextMux.Unlock()
 		}
 
 		r.OrderNextMux.Lock()
 		order, err := utils.GetNextOrder(r.Db)
+		r.OrderNextMux.Unlock()
 
 		if err != nil {
-			log.Printf("ERROR: Failed to query next order: %v\n", err)
+			log.Printf("ERROR: Failed to query next order (outer): %v\n", err)
 			cleanup(order)
 			return
 		}
 
-		r.OrderNextMux.Unlock()
 		if order != nil {
 			log.Printf("Got order %d\n", order.ID)
 			notifyUpdate(order.ID)
@@ -831,13 +833,12 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 
 				r.OrderNextMux.Lock()
 				order, err = utils.GetNextOrder(r.Db)
+				r.OrderNextMux.Unlock()
 
 				if err != nil {
 					log.Printf("ERROR: Failed to query next order: %v\n", err)
 					break loop
 				}
-
-				r.OrderNextMux.Unlock()
 
 				if order != nil {
 					notifyUpdate(order.ID)
