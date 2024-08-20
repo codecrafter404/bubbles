@@ -1,13 +1,19 @@
 <script lang="ts">
+  import Router from "svelte-spa-router";
+  import CreateOrder from "./lib/Pages/CreateOrder.svelte";
+  import FulfillOrder from "./lib/Pages/FulfillOrder.svelte";
+  import Index from "./lib/Pages/Index.svelte";
+
+  const routes = {
+    "/": Index,
+    "/create": CreateOrder,
+    "/fulfill/:orderId": FulfillOrder,
+  };
 </script>
 
-<main>
-  <h1
-    class="font-bold text-red-500 w-full text-center h-[100vh] content-center"
-  >
-    Hello world
-  </h1>
-</main>
+<body>
+  <Router {routes} />
+</body>
 
 <style>
 </style>
