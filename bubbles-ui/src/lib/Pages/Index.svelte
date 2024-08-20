@@ -1,15 +1,35 @@
 <script lang="ts">
-	import NavBar from "../Components/NavBar.svelte";
+	import { link } from "svelte-spa-router";
+	import { load_endpoint, update_endpoint } from "../utils/storage";
+	let graph_url = load_endpoint();
 </script>
 
-<div class="flex flex-col min-h-[100vh]">
-	<NavBar />
-	<div class="flex-grow flex flex-col 2xl:flex-row">
-		<div class="flex-grow bg-blue-100">Select Order Items</div>
-		<div class="2xl:w-[30vw] bg-orange-200">
-			OrderList (Shopping Cart)
-		</div>
+<div>
+	<h1>Useful Links</h1>
+	<div class="w-full justify-between inline-grid">
+		<a href="/create" use:link>Create</a>
+		<a href="/fulfill/" use:link>Fulfill</a>
+	</div>
+	<br />
+	<h1>Setup Endpoint URL</h1>
+	<div class="flex flex-col m-2">
+		<input
+			bind:value={graph_url}
+			class="ring-4 ring-offset-inherit ring-primary-500 rounded"
+		/>
+		<button
+			on:click={() => update_endpoint(graph_url)}
+			class="bg-primary-500 mt-3 p-3 rounded font-bold"
+			>update url</button
+		>
 	</div>
 </div>
 
-<style></style>
+<style>
+	h1 {
+		font-size: 26px;
+	}
+	a {
+		text-decoration: underline;
+	}
+</style>
