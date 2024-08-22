@@ -1,0 +1,19 @@
+query GetItemsForStore {
+  getItems {
+    id
+    name
+    price
+    image
+    available
+    isOneOff
+  }
+  getCustomItems {
+    id
+    name
+    dependsOn
+    exclusive
+    variants {
+      id
+    }
+  }
+}

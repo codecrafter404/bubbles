@@ -1,3 +1,4 @@
+import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -238,3 +239,11 @@ export enum User {
   Admin = 'ADMIN',
   User = 'USER'
 }
+
+export type GetItemsForStoreQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetItemsForStoreQuery = { __typename?: 'Query', getItems: Array<{ __typename?: 'Item', id: number, name: string, price: number, image: string, available: boolean, isOneOff: boolean }>, getCustomItems: Array<{ __typename?: 'CustomItem', id: number, name: string, dependsOn?: number | null, exclusive: boolean, variants: Array<{ __typename?: 'Item', id: number }> }> };
+
+
+export const GetItemsForStoreDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetItemsForStore"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"getItems"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"price"}},{"kind":"Field","name":{"kind":"Name","value":"image"}},{"kind":"Field","name":{"kind":"Name","value":"available"}},{"kind":"Field","name":{"kind":"Name","value":"isOneOff"}}]}},{"kind":"Field","name":{"kind":"Name","value":"getCustomItems"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"dependsOn"}},{"kind":"Field","name":{"kind":"Name","value":"exclusive"}},{"kind":"Field","name":{"kind":"Name","value":"variants"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<GetItemsForStoreQuery, GetItemsForStoreQueryVariables>;
