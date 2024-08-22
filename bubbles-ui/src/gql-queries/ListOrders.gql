@@ -6,6 +6,7 @@ query GetItemsForStore {
     image
     available
     isOneOff
+    identifier
   }
   getCustomItems {
     id
