@@ -1,0 +1,26 @@
+subscription NextOrder {
+  nextOrder {
+    id
+    identifier
+    items {
+      item {
+        id
+        identifier
+        name
+      }
+      quantity
+    }
+    customItems {
+      quantity
+      customItem {
+        id
+        name
+        variants {
+          id
+          identifier
+          name
+        }
+      }
+    }
+  }
+}

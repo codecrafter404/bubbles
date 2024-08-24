@@ -1,0 +1,3 @@
+mutation UndoOrder($order: Int!) {
+  updateOrder(order: $order, state: CANCELED) {id}
+}

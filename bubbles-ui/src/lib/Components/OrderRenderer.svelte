@@ -2,6 +2,11 @@
 	import type { Order } from "../../generated/graphql";
 	export let order: Order;
 	export let total: number;
+	export let expanded: boolean = false;
+
+	if (expanded) {
+		// sort
+	}
 </script>
 
 <div class="h-full p-3">
@@ -15,31 +20,34 @@
 					<li class="li-item px-2">
 						<span
 							class="flex justify-between"
-							><span
-								>{item
-									.customItem
+							><span>
+								{item.customItem
 									.name}</span
-							><span
-								>{item.quantity}
-								x {(() => {
-									let res = 0;
-									item.customItem.variants.forEach(
-										(
-											x,
-										) =>
-											(res +=
-												x.price),
-									);
-									return res.toFixed(
-										2,
-									);
-								})()}€</span
-							></span
+							><span>
+								{item.quantity}
+								x
+								{#if !expanded}
+									{(() => {
+										let res = 0;
+										item.customItem.variants.forEach(
+											(
+												x,
+											) =>
+												(res +=
+													x.price),
+										);
+										return res.toFixed(
+											2,
+										);
+									})()}€
+								{/if}
+							</span></span
 						>
 						<ul
 							class="pl-6 list-disc list-inside"
 						>
 							{#each item.customItem.variants as v}
+								<!-- TODO: update me -->
 								<li>
 									{v.name}
 									- x{item.quantity}
@@ -52,19 +60,41 @@
 					<li
 						class="li-item px-2 flex justify-between"
 					>
-						<span>{item.item.name}</span
+						<span>
+							{#if expanded}
+								<span
+									>({item
+										.item
+										.identifier})</span
+								>
+							{/if}
+							{item.item.name}</span
 						><span
-							>{item.quantity} x {item.item.price.toFixed(
-								2,
-							)}€</span
-						>
+							class={expanded
+								? "font-bold"
+								: ""}
+							>{item.quantity} x
+
+							{#if !expanded}
+								{item.item.price.toFixed(
+									2,
+								)}€
+							{/if}
+						</span>
 					</li>
 				{/each}
 			</ul>
 		</div>
 		<h1 class="text-center text-2xl p-4 bg-primary-100">
-			<span class="text-neutral-700">Total </span>
-			<span>{total.toFixed(2)}€</span>
+			{#if expanded}
+				<span class="text-neutral-700">Order </span>
+				<span class="font-bold text-accent-500"
+					>#{order.identifier}</span
+				>
+			{:else}
+				<span class="text-neutral-700">Total </span>
+				<span>{total.toFixed(2)}€</span>
+			{/if}
 		</h1>
 	</div>
 </div>

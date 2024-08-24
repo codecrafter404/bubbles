@@ -1,0 +1,3 @@
+mutation CompleateOrder($order: Int!) {
+  updateOrder(order: $order, state: COMPLEATED) {id}
+}

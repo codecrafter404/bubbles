@@ -786,6 +786,7 @@ func (r *subscriptionResolver) NextOrder(ctx context.Context) (<-chan *model.Ord
 
 		r.OrderNextMux.Lock()
 		order, err := utils.GetNextOrder(r.Db)
+		r.OrderNextMux.TryLock() // just to be sure
 		r.OrderNextMux.Unlock()
 
 		if err != nil {

@@ -8,12 +8,14 @@ import (
 	"os"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/codecrafter404/bubble/graph"
 	"github.com/codecrafter404/bubble/graph/model"
 	"github.com/codecrafter404/bubble/utils"
 	"github.com/go-chi/chi"
+	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/cors"
 )
@@ -53,9 +55,18 @@ func main() {
 		AllowCredentials: true,
 	}).Handler)
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection, EventChannel: []chan *model.UpdateEvent{}}}))
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection, EventChannel: []chan *model.UpdateEvent{}}}))
 
-	srv.AddTransport(&transport.Websocket{})
+	srv.AddTransport(transport.SSE{})
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(&transport.Websocket{
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	})
+	srv.Use(extension.Introspection{})
 
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	router.Handle("/query", srv)

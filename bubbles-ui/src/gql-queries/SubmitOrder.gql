@@ -1,0 +1,6 @@
+mutation SubmitOrder($order: NewOrder!) {
+  createOrder(order: $order) {
+    id
+    identifier
+  }
+}
