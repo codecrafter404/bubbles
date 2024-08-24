@@ -3,13 +3,65 @@
 	import * as gql from "../../generated/graphql";
 	import CreateSelectionItem from "../Components/CreateSelectionItem.svelte";
 	import type { CustomItem, Item } from "../../generated/graphql";
+	import { onDestroy, onMount } from "svelte";
+
+	const columns = 5;
 
 	let res = queryStore({
 		client: getContextClient(),
 		query: gql.GetItemsForStoreDocument,
 	});
-	let current = 1;
-	let currentName = "Item 2";
+	let current = 18;
+	let currentIsCustom = true;
+
+	let cCustomItems: Array<CustomItem> = [];
+	let cItems: Array<Item> = [];
+
+	function handle_key_down(e: KeyboardEvent) {}
+
+	function get_selectable_nodes(): [Array<CustomItem>, Array<Item>] {
+		let cCustomFiltered = cCustomItems.filter(
+			(x) => x.dependsOn != null,
+		);
+		let cItemFiltered = cItems.filter(
+			(x) => x.available && x.isOneOff,
+		);
+		return [cCustomFiltered, cItemFiltered];
+	}
+	function get_current_selected(): number {
+		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
+		let idx = -1;
+		if (currentIsCustom) {
+			idx = cCustomFiltered.findIndex((x) => x.id == current);
+		} else {
+			idx =
+				cItemFiltered.findIndex(
+					(x) => x.id == current,
+				) + cCustomItems.length;
+		}
+		return idx;
+	}
+	function select_nth(n: number) {
+		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
+		let len = cCustomFiltered.length + cItemFiltered.length;
+
+		if (n > len - 1) {
+			console.info("Maybee bug?", len, n);
+			return;
+		}
+
+		if (n < cCustomFiltered.length) {
+			// custom item range
+			current = cCustomFiltered[n].id;
+			currentIsCustom = true;
+		} else {
+			// custom item range
+			current = cItemFiltered[n - cCustomFiltered.length].id;
+			currentIsCustom = false;
+		}
+		console.log("nth", n, current, currentIsCustom);
+	}
+
 	function mapCustomItems(
 		customItems: Array<CustomItem>,
 		item: Array<Item>,
@@ -49,7 +101,6 @@
 			});
 			return [x[0], minPrice, maxPrice];
 		});
-		console.log(res);
 		return res;
 	}
 	// will get stuck if ther's a loop
@@ -66,6 +117,19 @@
 		}
 		return res;
 	}
+	res.subscribe((x) => {
+		if (x.data != null) {
+			cCustomItems = x.data.getCustomItems;
+			cItems = x.data.getItems;
+			select_nth(0);
+		}
+	});
+	onMount(() => {
+		document.addEventListener("keydown", handle_key_down);
+	});
+	onDestroy(() => {
+		document.removeEventListener("keydown", handle_key_down);
+	});
 </script>
 
 <div class="flex flex-col min-h-[100vh] max-h-[100vh] h-[100vh]">
@@ -80,22 +144,9 @@
 					class="overflow-y-scroll max-h-[100vh] h-[100vh] max-w-[70vw] p-3"
 				>
 					<div
-						class="grid grid-cols-5 gap-3 items-center"
+						class="grid gap-3 items-center"
+						style={`grid-template-columns: repeat(${columns}, minmax(0, 1fr))`}
 					>
-						{#each $res.data.getItems as item}
-							{#if item.isOneOff && item.available}
-								<CreateSelectionItem
-									{item}
-									customItem={null}
-									customItemPriceEnd={null}
-									customItemPriceStart={null}
-									hovered={item.id ==
-										current &&
-										item.name ==
-											currentName}
-								/>
-							{/if}
-						{/each}
 						{#each mapCustomItems($res.data.getCustomItems, $res.data.getItems) as item}
 							{#if item[0].dependsOn}
 								<CreateSelectionItem
@@ -106,9 +157,20 @@
 									hovered={item[0]
 										.id ==
 										current &&
-										item[0]
-											.name ==
-											currentName}
+										currentIsCustom}
+								/>
+							{/if}
+						{/each}
+						{#each $res.data.getItems as item}
+							{#if item.isOneOff && item.available}
+								<CreateSelectionItem
+									{item}
+									customItem={null}
+									customItemPriceEnd={null}
+									customItemPriceStart={null}
+									hovered={item.id ==
+										current &&
+										!currentIsCustom}
 								/>
 							{/if}
 						{/each}

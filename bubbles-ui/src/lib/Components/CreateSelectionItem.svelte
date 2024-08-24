@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
+	import { createEventDispatcher, onMount } from "svelte";
 	import type { CustomItem, Item } from "../../generated/graphql";
 
 	export let item: Item | null;
@@ -9,11 +9,18 @@
 	export let customItemPriceEnd: number | null;
 
 	export let hovered: boolean = true;
+	let currentElem: HTMLDivElement;
+	onMount(() => {
+		if (hovered) {
+			currentElem.scrollIntoView();
+		}
+	});
 </script>
 
 <div
 	class={"ring-2 ring-opacity-30 aspect-[3/4] flex flex-col overflow-hidden rounded-md" +
 		(hovered ? " ring-accent-500" : "")}
+	bind:this={currentElem}
 >
 	{#if item != null}
 		<img
