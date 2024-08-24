@@ -10,7 +10,6 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/codecrafter404/bubble/graph"
 	"github.com/codecrafter404/bubble/graph/model"
 	"github.com/codecrafter404/bubble/utils"
@@ -68,8 +67,11 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 
-	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	// router.Handle("/config", playground.Handler("GraphQL playground", "/query"))
 	router.Handle("/query", srv)
+
+	app_fs := http.FileServer(http.Dir("./app/"))
+	router.Handle("/*", app_fs)
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))

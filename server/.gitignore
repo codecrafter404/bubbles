@@ -1,2 +1,6 @@
 bubbles.db
 bubble.exe
+app/*.js
+app/*.html
+app/assets/*
+app/images/*.jpeg
