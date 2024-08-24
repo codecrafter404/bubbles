@@ -6,4 +6,38 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   /* https://goodpalette.io/08bdba-d1ce26-abb3b2 */
   color: #222625;
+
+  /* Primary: Jade Gravel */
+  --primary-100: #F2FCFF;
+  --primary-200: #B7F3FE;
+  --primary-300: #7AEAF7;
+  --primary-400: #3DDCE3;
+  --primary-500: #08BDBA;
+  --primary-600: #03978C;
+  --primary-700: #017162;
+  --primary-800: #004C3D;
+  --primary-900: #00261D;
+
+  /* Accent: Barberry Bush */
+  --accent-100: #FCFFF2;
+  --accent-200: #F5FEC1;
+  --accent-300: #EEF98D;
+  --accent-400: #E5EC58;
+  --accent-500: #D1CE26;
+  --accent-600: #A69B0D;
+  --accent-700: #7C6C03;
+  --accent-800: #514100;
+  --accent-900: #261D00;
+
+  /* Neutral */
+  --neutral-100: #FAFCFC;
+  --neutral-200: #E6EAEA;
+  --neutral-300: #D2D7D7;
+  --neutral-400: #BFC5C5;
+  --neutral-500: #ABB3B2;
+  --neutral-600: #888F8E;
+  --neutral-700: #656C6B;
+  --neutral-800: #434947;
+  --neutral-900: #222625;
+
 }
