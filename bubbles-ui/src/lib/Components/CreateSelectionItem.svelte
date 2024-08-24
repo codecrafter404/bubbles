@@ -21,21 +21,24 @@
 			alt={item.name}
 			class="aspect-square w-full object-center object-cover flex-grow"
 		/>
+		<div class="flex justify-between p-1 bg-primary-100">
+			<p class="max-w-[75%]">
+				{item ? item.name : customItem?.name}
+			</p>
+			<p class="font-bold">
+				{item.price}€
+			</p>
+		</div>
 	{:else if customItem != null}
-		<p>{customItem.name}</p>
+		<div
+			class="flex-grow flex items-center justify-center bg-natural-500 text-3xl font-bold text-center"
+		>
+			<p>{customItem.name}</p>
+		</div>
+		<p class="text-end font-bold bg-primary-100 p-1">
+			{customItemPriceStart}€ - {customItemPriceEnd}€
+		</p>
 	{:else}
 		<p>Invalid component Props</p>
 	{/if}
-	<div class="flex justify-between p-1 bg-primary-100">
-		<p class="max-w-[75%]">
-			{item ? item.name : customItem?.name}
-		</p>
-		<p class="font-bold">
-			{item
-				? item.price
-				: customItemPriceStart +
-					"€ -" +
-					customItemPriceEnd}€
-		</p>
-	</div>
 </div>
