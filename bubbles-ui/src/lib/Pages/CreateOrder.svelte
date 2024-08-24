@@ -2,8 +2,14 @@
 	import { getContextClient, queryStore } from "@urql/svelte";
 	import * as gql from "../../generated/graphql";
 	import CreateSelectionItem from "../Components/CreateSelectionItem.svelte";
-	import type { CustomItem, Item } from "../../generated/graphql";
+	import {
+		OrderState,
+		type CustomItem,
+		type Item,
+		type Order,
+	} from "../../generated/graphql";
 	import { onDestroy, onMount } from "svelte";
+	import OrderRenderer from "../Components/OrderRenderer.svelte";
 
 	const columns = 5;
 
@@ -17,7 +23,18 @@
 	let cCustomItems: Array<CustomItem> = [];
 	let cItems: Array<Item> = [];
 
+	let currentOrder: Order = {
+		items: [],
+		customItems: [],
+		id: 0,
+		identifier: "",
+		state: OrderState.Created,
+		timestamp: "",
+		total: 0.0,
+	};
+
 	function handle_key_down(e: KeyboardEvent) {
+		console.log(e);
 		let selected = get_current_selected();
 		if (e.code == "Numpad8") {
 			// up
@@ -64,6 +81,14 @@
 			}
 			select_nth(res);
 		}
+		if (e.code == "NumpadEnter") {
+			// add to order
+			add_current_to_order();
+		}
+		if (e.code == "NumpadSubtract") {
+			// remove from order
+			remove_current_from_order();
+		}
 	}
 
 	function get_selectable_nodes(): [Array<CustomItem>, Array<Item>] {
@@ -90,6 +115,57 @@
 		}
 		return idx;
 	}
+	function add_current_to_order() {
+		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
+		if (currentIsCustom) {
+			let c = cCustomItems.find((x) => x.id == current);
+			console.log("Not yet implemented :(");
+		} else {
+			let c = cItemFiltered.find((x) => x.id == current)!;
+			add_more_item_to_order(c);
+		}
+		console.log(currentOrder);
+	}
+	function remove_current_from_order() {
+		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
+		if (currentIsCustom) {
+			let c = cCustomItems.find((x) => x.id == current);
+			console.log("Not yet implemented :(");
+		} else {
+			let c = cItemFiltered.find((x) => x.id == current)!;
+			let newOrderItems = currentOrder.items.map((x) => {
+				if (x.item.id == c.id) {
+					x.quantity--;
+				}
+				return x;
+			});
+			newOrderItems = newOrderItems.filter(
+				(x) => x.quantity >= 1,
+			);
+			currentOrder.items = newOrderItems;
+		}
+	}
+	function add_more_item_to_order(item: Item) {
+		let exists = currentOrder.items.find(
+			(x) => x.item.id == item.id,
+		);
+		if (exists) {
+			currentOrder.items = currentOrder.items.map((x) => {
+				if (x.item.id == item.id) {
+					x.quantity += 1;
+				}
+				return x;
+			});
+		} else {
+			currentOrder.items = [
+				...currentOrder.items,
+				{
+					item: item,
+					quantity: 1,
+				},
+			];
+		}
+	}
 	function select_nth(n: number) {
 		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
 		let len = cCustomFiltered.length + cItemFiltered.length;
@@ -108,7 +184,6 @@
 			current = cItemFiltered[n - cCustomFiltered.length].id;
 			currentIsCustom = false;
 		}
-		console.log("nth", n, current, currentIsCustom);
 	}
 
 	function mapCustomItems(
@@ -207,6 +282,25 @@
 										.id ==
 										current &&
 										currentIsCustom}
+									quantity={(() => {
+										let x =
+											currentOrder.customItems.find(
+												(
+													x,
+												) =>
+													x
+														.customItem
+														.id ==
+													item[0]
+														.id,
+											);
+										if (
+											x
+										) {
+											return x.quantity;
+										}
+										return 0;
+									})()}
 								/>
 							{/if}
 						{/each}
@@ -220,6 +314,24 @@
 									hovered={item.id ==
 										current &&
 										!currentIsCustom}
+									quantity={(() => {
+										let x =
+											currentOrder.items.find(
+												(
+													x,
+												) =>
+													x
+														.item
+														.id ==
+													item.id,
+											);
+										if (
+											x
+										) {
+											return x.quantity;
+										}
+										return 0;
+									})()}
 								/>
 							{/if}
 						{/each}
@@ -227,8 +339,8 @@
 				</div>
 			{/if}
 		</div>
-		<div class="w-[30vw] bg-orange-200">
-			OrderList (Shopping Cart)
+		<div class="w-[30vw]">
+			<OrderRenderer order={currentOrder} />
 		</div>
 	</div>
 </div>
