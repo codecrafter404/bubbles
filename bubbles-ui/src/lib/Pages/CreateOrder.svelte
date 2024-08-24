@@ -17,7 +17,54 @@
 	let cCustomItems: Array<CustomItem> = [];
 	let cItems: Array<Item> = [];
 
-	function handle_key_down(e: KeyboardEvent) {}
+	function handle_key_down(e: KeyboardEvent) {
+		let selected = get_current_selected();
+		if (e.code == "Numpad8") {
+			// up
+			let res = selected;
+			res -= columns;
+			if (res < 0) {
+				return;
+			}
+			select_nth(res);
+		}
+		if (e.code == "Numpad6") {
+			// right
+			let res = selected;
+			let [cCustomFiltered, cItemFiltered] =
+				get_selectable_nodes();
+			let len = cCustomFiltered.length + cItemFiltered.length;
+			res++;
+			if (res >= len) {
+				return;
+			}
+			select_nth(res);
+		}
+		if (e.code == "Numpad2") {
+			// down
+			let res = selected;
+			let [cCustomFiltered, cItemFiltered] =
+				get_selectable_nodes();
+			let len = cCustomFiltered.length + cItemFiltered.length;
+
+			res += columns;
+
+			if (res >= len) {
+				return;
+			}
+			select_nth(res);
+			// down
+		}
+		if (e.code == "Numpad4") {
+			// left
+			let res = selected;
+			res--;
+			if (res < 0) {
+				return;
+			}
+			select_nth(res);
+		}
+	}
 
 	function get_selectable_nodes(): [Array<CustomItem>, Array<Item>] {
 		let cCustomFiltered = cCustomItems.filter(
@@ -37,7 +84,9 @@
 			idx =
 				cItemFiltered.findIndex(
 					(x) => x.id == current,
-				) + cCustomItems.length;
+				) +
+				cCustomItems.length -
+				1;
 		}
 		return idx;
 	}
