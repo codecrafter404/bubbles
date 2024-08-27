@@ -38,6 +38,7 @@
 			if (res >= len) {
 				return;
 			}
+			console.log("Selecting", res, selected);
 			select_nth(res);
 		}
 		if (e.code == "Numpad2") {
@@ -92,9 +93,7 @@
 			idx =
 				cItemFiltered.findIndex(
 					(x) => x.id == current,
-				) +
-				customItems.length -
-				1;
+				) + customItems.length;
 		}
 		return idx;
 	}

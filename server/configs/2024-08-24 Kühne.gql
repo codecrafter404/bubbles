@@ -3,7 +3,7 @@ mutation {
 		id: 0,
 		available: true,
 		identifier: "0",
-		name: "Kaffee",
+		name: "Kaffee (VV,V,G,L,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 1.5
@@ -11,7 +11,7 @@ mutation {
 		id: 1,
 		available: true,
 		identifier: "1",
-		name: "Melone",
+		name: "Melone (VV,V,G,L,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0
@@ -20,7 +20,7 @@ mutation {
 		id: 2,
 		available: true,
 		identifier: "2",
-		name: "Obstsalat",
+		name: "Obstsalat (VV,V,G,L,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 1.5
@@ -28,7 +28,7 @@ mutation {
 		id: 3,
 		available: true,
 		identifier: "3",
-		name: "Streußelkuchen - Apfel",
+		name: "Streußelkuchen - Apfel (V,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0
@@ -36,7 +36,7 @@ mutation {
 		id: 4,
 		available: true,
 		identifier: "4",
-		name: "Streußelkuchen - Pflaume",
+		name: "Streußelkuchen - Pflaume (V,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0
@@ -44,7 +44,7 @@ mutation {
 		id: 5,
 		available: true,
 		identifier: "5",
-		name: "Muffin - Kirsche",
+		name: "Muffin - Kirsche (V,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0
@@ -52,7 +52,7 @@ mutation {
 		id: 6,
 		available: true,
 		identifier: "6",
-		name: "Muffin - Heidelbeere",
+		name: "Muffin - Heidelbeere (V,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0
@@ -60,7 +60,7 @@ mutation {
 		id: 7,
 		available: true,
 		identifier: "7",
-		name: "Muffin - Rührteig",
+		name: "Muffin - Rührteig (V,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0
@@ -68,7 +68,7 @@ mutation {
 		id: 8,
 		available: true,
 		identifier: "8",
-		name: "Zitronenkuchen",
+		name: "Zitronenkuchen (V,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0
@@ -76,7 +76,7 @@ mutation {
 		id: 9,
 		available: true,
 		identifier: "9",
-		name: "Brownies",
+		name: "Brownies (VV,V,N)",
 		image:"/images/cat.jpg",
 		isOneOff: true
 		price: 2.0

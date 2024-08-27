@@ -145,7 +145,7 @@
 </script>
 
 <div class="flex flex-col min-h-[100vh] max-h-[100vh] h-[100vh]">
-	<div class="flex-grow flex flex-col 2xl:flex-row">
+	<div class="flex-grow flex flex-row">
 		<div class="flex-grow max-h-full">
 			{#if $res.fetching}
 				<p>Loading</p>
