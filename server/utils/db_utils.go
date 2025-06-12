@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS orders_custom_items_link(
 	order_id INTEGER NOT NULL,
 	quantity INTEGER NOT NULL,
 	custom_item_id INTEGER NOT NULL,
-	item_id INTEGER NOT NULL
+	item_id INTEGER NOT NULL,
+	custom_item_variation_id INTEGER NOT NULL
 );
 	`
 	_, err := connection.Exec(migration)
@@ -246,7 +247,7 @@ func queryOrdersTransaction(tx *sql.Tx, options *OrderQueryOptions) ([]model.Ord
 		}
 	}
 
-	orderCustomItemQuery := `SELECT orders.id, orders_custom_items_link.quantity, custom_item.id, custom_item.name, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
+	orderCustomItemQuery := `SELECT orders.id, orders_custom_items_link.quantity, orders_custom_items_link.custom_item_variation_id, custom_item.id, custom_item.name, custom_item.exclusive, item.id, item.name, item.price, item.image, item.available, item.identifier, item.oneoff
 		FROM orders
 		INNER JOIN orders_custom_items_link ON orders_custom_items_link.order_id=orders.id
 		LEFT JOIN custom_item ON orders_custom_items_link.custom_item_id=custom_item.id
@@ -264,44 +265,55 @@ func queryOrdersTransaction(tx *sql.Tx, options *OrderQueryOptions) ([]model.Ord
 		return []model.Order{}, fmt.Errorf("Failed to query orderItems: %w", err)
 	}
 
-	customItemMap := make(map[int][]model.OrderCustomItem)
+	type OrderCustomItemWithVariation struct {
+		item      model.OrderCustomItem
+		variation int
+	}
+	customItemMap := make(map[int][]OrderCustomItemWithVariation)
+
 	for orderCustomItem.Next() {
+		//TODO: fix up this spagetti code
 		var order int
-		var customItem model.OrderCustomItem
-		customItem.CustomItem = &model.CustomItem{}
+		var itemWithVariation OrderCustomItemWithVariation
+		itemWithVariation.item.CustomItem = &model.CustomItem{}
+
 		var item model.Item
 
-		err := orderCustomItem.Scan(&order, &customItem.Quantity, &customItem.CustomItem.ID, &customItem.CustomItem.Name, &customItem.CustomItem.Exclusive, &item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
+		var variation_id int
+
+		err := orderCustomItem.Scan(&order, &itemWithVariation.item.Quantity, &variation_id, &itemWithVariation.item.CustomItem.ID, &itemWithVariation.item.CustomItem.Name, &itemWithVariation.item.CustomItem.Exclusive, &item.ID, &item.Name, &item.Price, &item.Image, &item.Available, &item.Identifier, &item.IsOneOff)
+
 		if err != nil {
 			return []model.Order{}, fmt.Errorf("Failed to scan row: %w", err)
 		}
 
 		x, exists := customItemMap[order]
 		if !exists {
-			customItem.CustomItem.Variants = append(customItem.CustomItem.Variants, &item)
-			customItemMap[order] = []model.OrderCustomItem{customItem}
+			itemWithVariation.item.CustomItem.Variants = append(itemWithVariation.item.CustomItem.Variants, &item)
+			customItemMap[order] = []OrderCustomItemWithVariation{itemWithVariation}
 			continue
 		}
 
 		found := false
 
-		res := []model.OrderCustomItem{}
+		res := []OrderCustomItemWithVariation{}
 
 		for _, i := range x {
-			if i.CustomItem.ID == customItem.CustomItem.ID && i.Quantity == customItem.Quantity {
+			if i.item.CustomItem.ID == itemWithVariation.item.CustomItem.ID && i.item.Quantity == itemWithVariation.item.Quantity {
 				found = true
-				i.CustomItem.Variants = append(i.CustomItem.Variants, &item)
+				i.item.CustomItem.Variants = append(i.item.CustomItem.Variants, &item)
 			}
 			res = append(res, i)
 		}
 
 		if !found {
-			customItem.CustomItem.Variants = append(customItem.CustomItem.Variants, &item)
-			res = append(res, customItem)
+			itemWithVariation.item.CustomItem.Variants = append(itemWithVariation.item.CustomItem.Variants, &item)
+			res = append(res, itemWithVariation)
 		}
 
 		customItemMap[order] = res
 	}
+
 	res := []model.Order{}
 	for orderId, order := range orderMap {
 		if items, exists := orderItemMap[orderId]; exists {
@@ -314,7 +326,7 @@ func queryOrdersTransaction(tx *sql.Tx, options *OrderQueryOptions) ([]model.Ord
 		if cItems, exists := customItemMap[orderId]; exists {
 			resItems := []*model.OrderCustomItem{}
 			for _, x := range cItems {
-				resItems = append(resItems, &x)
+				resItems = append(resItems, &x.item)
 			}
 			order.CustomItems = resItems
 		}

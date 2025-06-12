@@ -201,9 +201,9 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, order model.NewOrder
 		}
 	}
 
-	for _, c := range order.CustomItems {
+	for i, c := range order.CustomItems {
 		for _, v := range c.Variants {
-			_, err := tx.Exec("INSERT INTO orders_custom_items_link (order_id, custom_item_id, item_id, quantity) VALUES (?, ?, ?, ?)", id, c.ID, v, c.Quantity)
+			_, err := tx.Exec("INSERT INTO orders_custom_items_link (order_id, custom_item_id, item_id, quantity, custom_item_variation_id) VALUES (?, ?, ?, ?, ?)", id, c.ID, v, c.Quantity, i)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to link custom_order %d to order %d", c.ID, id)
 			}

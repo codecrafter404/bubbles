@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { onDestroy, onMount } from "svelte";
 	import type { CustomItem, Item, Order } from "../../generated/graphql";
-	import CreateSelectionItem from "./CreateSelectionItem.svelte";
+	import ItemSelectionGrid from "./ItemSelectionGrid.svelte";
+	import type { SelectableItem } from "../Types/SelectableItem";
 
 	export let columns = 5;
 
@@ -10,135 +10,91 @@
 
 	export let currentOrder: Order;
 
-	let current = 0;
-	let currentIsCustom = false;
+	customItems = mapCustomItemVariants(customItems, items);
 
-	// init current
-	select_nth(0);
-
-	function handle_key_down(e: KeyboardEvent) {
-		console.log(e);
-		let selected = get_current_selected();
-		if (e.code == "Numpad8") {
-			// up
-			let res = selected;
-			res -= columns;
-			if (res < 0) {
-				return;
-			}
-			select_nth(res);
-		}
-		if (e.code == "Numpad6") {
-			// right
-			let res = selected;
-			let [cCustomFiltered, cItemFiltered] =
-				get_selectable_nodes();
-			let len = cCustomFiltered.length + cItemFiltered.length;
-			res++;
-			if (res >= len) {
-				return;
-			}
-			console.log("Selecting", res, selected);
-			select_nth(res);
-		}
-		if (e.code == "Numpad2") {
-			// down
-			let res = selected;
-			let [cCustomFiltered, cItemFiltered] =
-				get_selectable_nodes();
-			let len = cCustomFiltered.length + cItemFiltered.length;
-
-			res += columns;
-
-			if (res >= len) {
-				return;
-			}
-			select_nth(res);
-			// down
-		}
-		if (e.code == "Numpad4") {
-			// left
-			let res = selected;
-			res--;
-			if (res < 0) {
-				return;
-			}
-			select_nth(res);
-		}
-		if (e.code == "NumpadEnter") {
-			// add to order
-			add_current_to_order();
-		}
-		if (e.code == "NumpadSubtract") {
-			// remove from order
-			remove_current_from_order();
-		}
+	// maps the customitem variants ids to thier actual objects
+	function mapCustomItemVariants(
+		customItems: CustomItem[],
+		items: Item[],
+	): CustomItem[] {
+		return customItems.map((x) => {
+			x.variants = x.variants.map(
+				(y) => items.find((z) => z.id == y.id)!,
+			);
+			return x;
+		});
 	}
 
-	function get_selectable_nodes(): [Array<CustomItem>, Array<Item>] {
-		let cCustomFiltered = customItems.filter(
-			(x) => x.dependsOn != null,
-		);
-		let cItemFiltered = items.filter(
-			(x) => x.available && x.isOneOff,
-		);
-		return [cCustomFiltered, cItemFiltered];
-	}
-	function get_current_selected(): number {
-		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
-		let idx = -1;
-		if (currentIsCustom) {
-			idx = cCustomFiltered.findIndex((x) => x.id == current);
-		} else {
-			idx =
-				cItemFiltered.findIndex(
-					(x) => x.id == current,
-				) + customItems.length;
-		}
-		return idx;
-	}
-	function add_current_to_order() {
-		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
-		if (currentIsCustom) {
-			let c = customItems.find((x) => x.id == current)!;
-			currentOrder.customItems = [
-				...currentOrder.customItems,
-				{
-					customItem: c,
-					quantity: 1,
+	function addCustomItemToOrder(item: CustomItem) {
+		let customizing = currentlyCustomizing();
+		if (customizing != null)
+			throw Error("This should never happen!");
+		currentOrder.customItems = [
+			...currentOrder.customItems,
+			{
+				customItem: {
+					...item,
+					variants: [],
 				},
-			];
-			console.log("Not yet implemented :(");
-		} else {
-			let c = cItemFiltered.find((x) => x.id == current)!;
-			add_more_item_to_order(c);
-		}
-		console.log(currentOrder);
+				quantity: 1,
+			},
+		];
 	}
-	function remove_current_from_order() {
-		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
-		if (currentIsCustom) {
-			let c = customItems.find((x) => x.id == current);
-			console.log("Not yet implemented :(");
-		} else {
-			let c = cItemFiltered.find((x) => x.id == current)!;
-			let newOrderItems = currentOrder.items.map((x) => {
-				if (x.item.id == c.id) {
-					x.quantity--;
+
+	function removeCustomItemFromOrder(item: CustomItem) {
+		let customizing = currentlyCustomizing();
+		if (customizing != null)
+			throw Error("This should never happen!");
+		let first = true;
+		currentOrder.customItems = currentOrder.customItems
+			.reverse()
+			.map((x) => {
+				if (x.customItem.id == item.id) {
+					if (first) {
+						x.quantity -= 1;
+					}
 				}
 				return x;
-			});
-			newOrderItems = newOrderItems.filter(
-				(x) => x.quantity >= 1,
-			);
-			currentOrder.items = newOrderItems;
-		}
+			})
+			.filter((x) => x.quantity > 0);
 	}
-	function add_more_item_to_order(item: Item) {
+
+	function addItemToOrder(item: Item) {
 		let exists = currentOrder.items.find(
 			(x) => x.item.id == item.id,
 		);
-		if (exists) {
+		let customizing = currentlyCustomizing();
+		if (customizing != null) {
+			currentOrder.customItems = currentOrder.customItems.map(
+				(x) => {
+					let itemChain = getCustomItemChainById(
+						x.customItem.id,
+					);
+					for (let chainItem of itemChain) {
+						if (
+							chainItem.variants.find(
+								(y) =>
+									x.customItem.variants.includes(
+										y,
+									),
+							) == null
+						) {
+							x.customItem.variants =
+								[
+									...x
+										.customItem
+										.variants,
+									item,
+								];
+							return x;
+						}
+					}
+					return x;
+				},
+			);
+			return;
+		}
+		if (exists != null) {
 			currentOrder.items = currentOrder.items.map((x) => {
 				if (x.item.id == item.id) {
 					x.quantity += 1;
@@ -155,134 +111,191 @@
 			];
 		}
 	}
-	function select_nth(n: number) {
-		let [cCustomFiltered, cItemFiltered] = get_selectable_nodes();
-		let len = cCustomFiltered.length + cItemFiltered.length;
+	function removeItemFromOrder(item: Item) {
+		currentOrder.items = currentOrder.items
+			.map((x) => {
+				if (item.id == x.item.id) x.quantity -= 1;
+				console.log(x);
+				return x;
+			})
+			.filter((x) => x.quantity > 0);
+	}
 
-		if (n > len - 1) {
-			console.info("Maybee bug?", len, n);
-			return;
-		}
-
-		if (n < cCustomFiltered.length) {
-			// custom item range
-			current = cCustomFiltered[n].id;
-			currentIsCustom = true;
-		} else {
-			// custom item range
-			current = cItemFiltered[n - cCustomFiltered.length].id;
-			currentIsCustom = false;
+	function addToOrder(event: CustomEvent<SelectableItem>) {
+		switch (event.detail.data["type"]) {
+			case "item":
+				let item = event.detail.data["item"] as Item;
+				item = items.find((x) => x.id == item.id)!;
+				addItemToOrder(item);
+				break;
+			case "CustomItem":
+				let customItem = event.detail.data[
+					"item"
+				] as CustomItem;
+				customItem = customItems.find(
+					(x) => x.id == customItem.id,
+				)!;
+				console.log(
+					customItem,
+					"this item should not be empty",
+					customItems,
+				);
+				addCustomItemToOrder(customItem);
+				break;
+			default:
+				throw Error("UNIMPLEMENTED case");
 		}
 	}
-	function mapCustomItems(
-		customItems: Array<CustomItem>,
-		item: Array<Item>,
-	): Array<[CustomItem, number, number]> {
-		let res: Array<[CustomItem, number, number]> = customItems.map(
-			(x) => {
-				x.variants = x.variants.map(
-					(y) => item.find((z) => z.id == y.id)!,
-				);
-				return [x, 0, 0];
-			},
-		);
-		res = res.map((x) => {
-			let deps = getDependencies(
-				x[0],
-				res.map((x) => x[0]),
-			);
-			deps.push(x[0]);
-			let minPrice = 0;
-			let maxPrice = 0;
-			deps.forEach((y) => {
-				let sorted = y.variants.sort(
-					(a, b) => a.price - b.price,
-				);
-				if (sorted.length == 0) {
-					return;
-				}
-				minPrice += sorted[0].price;
-				if (y.exclusive) {
-					maxPrice +=
-						sorted[sorted.length - 1].price;
-				} else {
-					sorted.forEach(
-						(z) => (maxPrice += z.price),
-					);
-				}
-			});
-			return [x[0], minPrice, maxPrice];
-		});
-		return res;
+	function removeFromOrder(event: CustomEvent<SelectableItem>) {
+		switch (event.detail.data["type"]) {
+			case "item":
+				let item = event.detail.data["item"] as Item;
+				removeItemFromOrder(item);
+				break;
+			case "CustomItem":
+				let customItem = event.detail.data[
+					"item"
+				] as CustomItem;
+				removeCustomItemFromOrder(customItem);
+				break;
+			default:
+				throw Error("UNIMPLEMENTED case");
+		}
 	}
+
 	// will get stuck if ther's a loop
 	function getDependencies(
 		root: CustomItem,
 		items: Array<CustomItem>,
 	): Array<CustomItem> {
+		console.log("root", root, items);
 		let res: Array<CustomItem> = [];
 		let current = root;
-		while (current.dependsOn) {
-			let x = items.find((x) => x.id == current.dependsOn)!;
-			res.push(x);
-			current = x;
+		while (current != null) {
+			let x = items.find((x) => x.dependsOn == current.id);
+			if (x != null) res.push(x);
+			current = x!;
 		}
 		return res;
 	}
 
-	onMount(() => {
-		document.addEventListener("keydown", handle_key_down);
-	});
-	onDestroy(() => {
-		document.removeEventListener("keydown", handle_key_down);
-	});
+	function getCustomItemChainById(id: number): CustomItem[] {
+		let customItem = customItems.find((x) => x.id == id);
+		if (customItem == null) return [];
+		let itemChain = [
+			customItem,
+			...getDependencies(customItem, customItems),
+		];
+		return itemChain;
+	}
+
+	/// returns true, if we're currently customizing a CustomItem
+	function currentlyCustomizing(): [CustomItem, CustomItem] | null {
+		for (let customOrderItem of currentOrder.customItems) {
+			let itemChain = getCustomItemChainById(
+				customOrderItem.customItem.id,
+			);
+			console.log("chain", itemChain);
+			for (let chainItem of itemChain) {
+				if (
+					chainItem.variants.find((x) =>
+						customOrderItem.customItem.variants.includes(
+							x,
+						),
+					) == null
+				) {
+					return [
+						chainItem,
+						customOrderItem.customItem,
+					];
+				}
+			}
+		}
+		return null;
+	}
+
+	function itemToSelectableItem(
+		item: Item,
+		order: Order,
+	): SelectableItem {
+		return {
+			name: item.name,
+			image: item.image,
+			price: `${item.price}€`,
+			quantity: order.items
+				.filter((x) => x.item.id == item.id)
+				.reduce((a, b) => a + b.quantity, 0),
+			data: { type: "item", item: item },
+		};
+	}
+	function customItemToSelectableItem(
+		item: CustomItem,
+		order: Order,
+	): SelectableItem {
+		let chain = getCustomItemChainById(item.id);
+		let min = chain
+			.map(
+				(x) =>
+					x.variants.sort(
+						(a, b) => a.price - b.price,
+					)[0].price,
+			)
+			.filter((x) => x != null)
+			.reduce((s, a) => s + a);
+		let max = chain
+			.map(
+				(x) =>
+					x.variants.sort(
+						(a, b) => b.price - a.price,
+					)[0].price,
+			)
+			.filter((x) => x != null)
+			.reduce((s, a) => s + a);
+
+		return {
+			name: item.name,
+			image: "",
+			quantity: order.customItems
+				.filter((x) => x.customItem.id == item.id)
+				.map((x) => x.quantity)
+				.reduce((a, b) => a + b, 0),
+			price: `${min}€ - ${max}€`,
+			data: { type: "CustomItem", item: item },
+		};
+	}
+
+	function getSelectableItems(
+		customItems: CustomItem[],
+		items: Item[],
+		order: Order,
+	): SelectableItem[] {
+		let customizing = currentlyCustomizing();
+		console.log(customizing);
+		if (customizing != null)
+			return customizing[0].variants.map((x) =>
+				itemToSelectableItem(x, order),
+			);
+		let res = items
+			.filter((x) => x.isOneOff && x.available)
+			.map((x) => itemToSelectableItem(x, order));
+		res = [
+			...customItems //TODO: make configurable (if customitems before or after regular ones)
+				.filter((x) => x.dependsOn == null)
+				.map((x) =>
+					customItemToSelectableItem(x, order),
+				),
+			...res,
+		];
+		return res;
+	}
 </script>
 
-<div
-	class="grid gap-3 items-center"
-	style={`grid-template-columns: repeat(${columns}, minmax(0, 1fr))`}
->
-	{#each mapCustomItems(customItems, items) as item}
-		{#if item[0].dependsOn}
-			<CreateSelectionItem
-				item={null}
-				customItem={item[0]}
-				customItemPriceEnd={item[1]}
-				customItemPriceStart={item[2]}
-				hovered={item[0].id == current &&
-					currentIsCustom}
-				quantity={(() => {
-					let x = currentOrder.customItems.find(
-						(x) =>
-							x.customItem.id ==
-							item[0].id,
-					);
-					if (x) {
-						return x.quantity;
-					}
-					return 0;
-				})()}
-			/>
-		{/if}
-	{/each}
-	{#each items as item}
-		{#if item.isOneOff && item.available}
-			<CreateSelectionItem
-				{item}
-				customItem={null}
-				customItemPriceEnd={null}
-				customItemPriceStart={null}
-				hovered={item.id == current && !currentIsCustom}
-				quantity={(() => {
-					let x = currentOrder.items.find(
-						(x) => x.item.id == item.id,
-					);
-					if (x) {
-						return x.quantity;
-					}
-					return 0;
-				})()}
-			/>
-		{/if}
-	{/each}
+<div>
+	<!-- TODO: impl add/remove -->
+	<ItemSelectionGrid
+		items={getSelectableItems(customItems, items, currentOrder)}
+		gridCols={columns}
+		on:add={addToOrder}
+		on:remove={removeFromOrder}
+	/>
 </div>
