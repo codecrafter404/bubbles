@@ -14,11 +14,12 @@
 	let currentIsCustom = false;
 
 	// init current
-	select_nth(0);
+	select_nth(4);
 
 	function handle_key_down(e: KeyboardEvent) {
 		console.log(e);
 		let selected = get_current_selected();
+		console.log("selected", selected);
 		if (e.code == "Numpad8") {
 			// up
 			let res = selected;

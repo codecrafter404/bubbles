@@ -1,0 +1,60 @@
+mutation {
+	createItems(items:  [{
+		id: 0,
+		available: true,
+		identifier: "1",
+		name: "Bratwurst",
+		image:"http://localhost:8080/images/0.jpg",
+		isOneOff: true
+		price: 4.0
+	},{
+		id: 1,
+		available: true,
+		identifier: "1",
+		name: "Vegane Bratwurst",
+		image:"http://localhost:8080/images/1.jpg",
+		isOneOff: true
+		price: 3.5
+	},{
+		id: 2,
+		available: true,
+		identifier: "2",
+		name: "Steak",
+		image:"http://localhost:8080/images/2.jpg",
+		isOneOff: true
+		price: 4.5
+	},{
+		id: 3,
+		available: true,
+		identifier: "3",
+		name: "Käse",
+		image:"http://localhost:8080/images/3.jpg",
+		isOneOff: true
+		price: 3.0
+	},{
+		id: 4,
+		available: true,
+		identifier: "4",
+		name: "Salate",
+		image:"http://localhost:8080/images/4.jpg",
+		isOneOff: true
+		price: 2.0
+	},{
+		id: 5,
+		available: true,
+		identifier: "5",
+		name: "MENU - 3 Würste (mit Brötchen)",
+		image:"http://localhost:8080/images/5.jpg",
+		isOneOff: true
+		price: 10
+	},{
+		id: 6,
+		available: true,
+		identifier: "6",
+		name: "MENU - Salat mit Bratwurst (ohne Bötchen)",
+		image:"http://localhost:8080/images/6.jpg",
+		isOneOff: true
+		price: 5
+	}])
+		createCustomItems(items:  [])
+}
