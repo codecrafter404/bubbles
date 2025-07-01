@@ -21,10 +21,10 @@
 </script>
 
 <div
-	class={"ring-2 ring-opacity-30 aspect-[3/4] flex flex-col overflow-hidden rounded-md z-0 relative shadow-sm" +
+	class={"ring-2 aspect-[3/4] flex flex-col overflow-hidden rounded-md z-0 relative shadow-sm" +
 		(hovered
 			? " ring-accent-500 shadow-xl ring-4 ring-opacity-100"
-			: "")}
+			: " ring-opacity-30")}
 	bind:this={currentElem}
 >
 	{#if quantity != 0}
