@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/codecrafter404/bubble/graph/model"
+	"github.com/codecrafter404/bubble/graph"
 )
 
 func MigrateDb(connection *sql.DB) error {

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,13 +8,17 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/codecrafter404/bubble/graph"
-	"github.com/codecrafter404/bubble/graph/model"
-	"github.com/codecrafter404/bubble/utils"
+	"github.com/codecrafter404/bubble/resolvers"
+
+	// "github.com/codecrafter404/bubble/utils"
 	"github.com/go-chi/chi"
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/cors"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 const defaultPort = "8080"
@@ -31,20 +33,12 @@ func main() {
 		db_path = "bubbles.db"
 	}
 
-	connection, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared", db_path))
+	db, err := gorm.Open(sqlite.Open(db_path))
 
 	if err != nil {
-		fmt.Printf("Failed to open db connection: %s\n", err.Error())
-		return
+		log.Fatalf("Failed to open database: %+v\n", err)
 	}
 
-	defer connection.Close()
-
-	err = utils.MigrateDb(connection)
-	if err != nil {
-		fmt.Println("Failed to setup:", err)
-		return
-	}
 	router := chi.NewRouter()
 
 	// Add CORS middleware around every request
@@ -54,7 +48,7 @@ func main() {
 		AllowCredentials: true,
 	}).Handler)
 
-	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Db: connection, EventChannel: []chan *model.UpdateEvent{}}}))
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &resolvers.Resolver{Db: db, EventChannel: []chan *graph.UpdateEvent{}}}))
 
 	srv.AddTransport(transport.SSE{})
 	srv.AddTransport(transport.POST{})
@@ -67,7 +61,7 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 
-	// router.Handle("/config", playground.Handler("GraphQL playground", "/query"))
+	router.Handle("/config", playground.Handler("GraphQL playground", "/query"))
 	router.Handle("/query", srv)
 
 	app_fs := http.FileServer(http.Dir("./app/"))

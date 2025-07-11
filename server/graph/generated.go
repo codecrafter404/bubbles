@@ -5,7 +5,6 @@ package graph
 import (
 	"bytes"
 	"context"
-	"embed"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/codecrafter404/bubble/graph/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -62,19 +60,19 @@ type ComplexityRoot struct {
 		ID         func(childComplexity int) int
 		Identifier func(childComplexity int) int
 		Image      func(childComplexity int) int
-		IsOneOff   func(childComplexity int) int
+		IsVariant  func(childComplexity int) int
 		Name       func(childComplexity int) int
 		Price      func(childComplexity int) int
 	}
 
 	Mutation struct {
-		CreateCustomItems func(childComplexity int, items []*model.CustomItemInput) int
-		CreateItems       func(childComplexity int, items []*model.ItemInput) int
-		CreateOrder       func(childComplexity int, order model.NewOrder) int
+		CreateCustomItems func(childComplexity int, items []*NewCustomItem) int
+		CreateItems       func(childComplexity int, items []*NewItem) int
+		CreateOrder       func(childComplexity int, order NewOrder) int
 		DeleteOrder       func(childComplexity int, order int) int
-		UpdateCustomItem  func(childComplexity int, id int, item model.UpdateCustomItem) int
-		UpdateItem        func(childComplexity int, id int, item model.UpdateItem) int
-		UpdateOrder       func(childComplexity int, order int, state model.OrderState) int
+		UpdateCustomItem  func(childComplexity int, id int, item UpdateCustomItem) int
+		UpdateItem        func(childComplexity int, id int, item UpdateItem) int
+		UpdateOrder       func(childComplexity int, order int, state OrderState) int
 	}
 
 	Order struct {
@@ -112,32 +110,32 @@ type ComplexityRoot struct {
 
 	Subscription struct {
 		NextOrder func(childComplexity int) int
-		Orders    func(childComplexity int, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) int
+		Orders    func(childComplexity int, state *OrderState, id *int, limit *int, skip *int, sortAsc *bool) int
 		Stats     func(childComplexity int) int
 		Updates   func(childComplexity int) int
 	}
 }
 
 type MutationResolver interface {
-	CreateOrder(ctx context.Context, order model.NewOrder) (*model.Order, error)
-	UpdateOrder(ctx context.Context, order int, state model.OrderState) (*model.Order, error)
+	CreateOrder(ctx context.Context, order NewOrder) (*Order, error)
+	UpdateOrder(ctx context.Context, order int, state OrderState) (*Order, error)
 	DeleteOrder(ctx context.Context, order int) (int, error)
-	UpdateItem(ctx context.Context, id int, item model.UpdateItem) (*model.Item, error)
-	UpdateCustomItem(ctx context.Context, id int, item model.UpdateCustomItem) (*model.CustomItem, error)
-	CreateItems(ctx context.Context, items []*model.ItemInput) ([]int, error)
-	CreateCustomItems(ctx context.Context, items []*model.CustomItemInput) ([]int, error)
+	UpdateItem(ctx context.Context, id int, item UpdateItem) (*Item, error)
+	UpdateCustomItem(ctx context.Context, id int, item UpdateCustomItem) (*CustomItem, error)
+	CreateItems(ctx context.Context, items []*NewItem) ([]int, error)
+	CreateCustomItems(ctx context.Context, items []*NewCustomItem) ([]int, error)
 }
 type QueryResolver interface {
-	GetPermission(ctx context.Context) (model.User, error)
-	GetOrder(ctx context.Context, id int) (*model.Order, error)
-	GetItems(ctx context.Context) ([]*model.Item, error)
-	GetCustomItems(ctx context.Context) ([]*model.CustomItem, error)
+	GetPermission(ctx context.Context) (User, error)
+	GetOrder(ctx context.Context, id int) (*Order, error)
+	GetItems(ctx context.Context) ([]*Item, error)
+	GetCustomItems(ctx context.Context) ([]*CustomItem, error)
 }
 type SubscriptionResolver interface {
-	Orders(ctx context.Context, state *model.OrderState, id *int, limit *int, skip *int, sortAsc *bool) (<-chan []*model.Order, error)
-	NextOrder(ctx context.Context) (<-chan *model.Order, error)
-	Updates(ctx context.Context) (<-chan *model.UpdateEvent, error)
-	Stats(ctx context.Context) (<-chan *model.Statistics, error)
+	Orders(ctx context.Context, state *OrderState, id *int, limit *int, skip *int, sortAsc *bool) (<-chan []*Order, error)
+	NextOrder(ctx context.Context) (<-chan *Order, error)
+	Updates(ctx context.Context) (<-chan *UpdateEvent, error)
+	Stats(ctx context.Context) (<-chan *Statistics, error)
 }
 
 type executableSchema struct {
@@ -154,7 +152,7 @@ func (e *executableSchema) Schema() *ast.Schema {
 	return parsedSchema
 }
 
-func (e *executableSchema) Complexity(typeName, field string, childComplexity int, rawArgs map[string]interface{}) (int, bool) {
+func (e *executableSchema) Complexity(ctx context.Context, typeName, field string, childComplexity int, rawArgs map[string]any) (int, bool) {
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
@@ -222,12 +220,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Item.Image(childComplexity), true
 
-	case "Item.isOneOff":
-		if e.complexity.Item.IsOneOff == nil {
+	case "Item.isVariant":
+		if e.complexity.Item.IsVariant == nil {
 			break
 		}
 
-		return e.complexity.Item.IsOneOff(childComplexity), true
+		return e.complexity.Item.IsVariant(childComplexity), true
 
 	case "Item.name":
 		if e.complexity.Item.Name == nil {
@@ -248,43 +246,43 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		args, err := ec.field_Mutation_createCustomItems_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_createCustomItems_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateCustomItems(childComplexity, args["items"].([]*model.CustomItemInput)), true
+		return e.complexity.Mutation.CreateCustomItems(childComplexity, args["items"].([]*NewCustomItem)), true
 
 	case "Mutation.createItems":
 		if e.complexity.Mutation.CreateItems == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_createItems_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_createItems_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateItems(childComplexity, args["items"].([]*model.ItemInput)), true
+		return e.complexity.Mutation.CreateItems(childComplexity, args["items"].([]*NewItem)), true
 
 	case "Mutation.createOrder":
 		if e.complexity.Mutation.CreateOrder == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_createOrder_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_createOrder_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateOrder(childComplexity, args["order"].(model.NewOrder)), true
+		return e.complexity.Mutation.CreateOrder(childComplexity, args["order"].(NewOrder)), true
 
 	case "Mutation.deleteOrder":
 		if e.complexity.Mutation.DeleteOrder == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_deleteOrder_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_deleteOrder_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
@@ -296,36 +294,36 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		args, err := ec.field_Mutation_updateCustomItem_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_updateCustomItem_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateCustomItem(childComplexity, args["id"].(int), args["item"].(model.UpdateCustomItem)), true
+		return e.complexity.Mutation.UpdateCustomItem(childComplexity, args["id"].(int), args["item"].(UpdateCustomItem)), true
 
 	case "Mutation.updateItem":
 		if e.complexity.Mutation.UpdateItem == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_updateItem_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_updateItem_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateItem(childComplexity, args["id"].(int), args["item"].(model.UpdateItem)), true
+		return e.complexity.Mutation.UpdateItem(childComplexity, args["id"].(int), args["item"].(UpdateItem)), true
 
 	case "Mutation.updateOrder":
 		if e.complexity.Mutation.UpdateOrder == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_updateOrder_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_updateOrder_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateOrder(childComplexity, args["order"].(int), args["state"].(model.OrderState)), true
+		return e.complexity.Mutation.UpdateOrder(childComplexity, args["order"].(int), args["state"].(OrderState)), true
 
 	case "Order.customItems":
 		if e.complexity.Order.CustomItems == nil {
@@ -423,7 +421,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		args, err := ec.field_Query_getOrder_args(context.TODO(), rawArgs)
+		args, err := ec.field_Query_getOrder_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
@@ -470,12 +468,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		args, err := ec.field_Subscription_orders_args(context.TODO(), rawArgs)
+		args, err := ec.field_Subscription_orders_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Subscription.Orders(childComplexity, args["state"].(*model.OrderState), args["id"].(*int), args["limit"].(*int), args["skip"].(*int), args["sortAsc"].(*bool)), true
+		return e.complexity.Subscription.Orders(childComplexity, args["state"].(*OrderState), args["id"].(*int), args["limit"].(*int), args["skip"].(*int), args["sortAsc"].(*bool)), true
 
 	case "Subscription.stats":
 		if e.complexity.Subscription.Stats == nil {
@@ -496,20 +494,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 }
 
 func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
-	rc := graphql.GetOperationContext(ctx)
-	ec := executionContext{rc, e, 0, 0, make(chan graphql.DeferredResult)}
+	opCtx := graphql.GetOperationContext(ctx)
+	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputCustomItemInput,
-		ec.unmarshalInputItemInput,
 		ec.unmarshalInputNewCustomItem,
+		ec.unmarshalInputNewItem,
 		ec.unmarshalInputNewOrder,
+		ec.unmarshalInputNewOrderCustomItem,
 		ec.unmarshalInputNewOrderItem,
 		ec.unmarshalInputUpdateCustomItem,
 		ec.unmarshalInputUpdateItem,
 	)
 	first := true
 
-	switch rc.Operation.Operation {
+	switch opCtx.Operation.Operation {
 	case ast.Query:
 		return func(ctx context.Context) *graphql.Response {
 			var response graphql.Response
@@ -517,7 +515,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			if first {
 				first = false
 				ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
-				data = ec._Query(ctx, rc.Operation.SelectionSet)
+				data = ec._Query(ctx, opCtx.Operation.SelectionSet)
 			} else {
 				if atomic.LoadInt32(&ec.pendingDeferred) > 0 {
 					result := <-ec.deferredResults
@@ -547,7 +545,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			}
 			first = false
 			ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
-			data := ec._Mutation(ctx, rc.Operation.SelectionSet)
+			data := ec._Mutation(ctx, opCtx.Operation.SelectionSet)
 			var buf bytes.Buffer
 			data.MarshalGQL(&buf)
 
@@ -556,7 +554,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			}
 		}
 	case ast.Subscription:
-		next := ec._Subscription(ctx, rc.Operation.SelectionSet)
+		next := ec._Subscription(ctx, opCtx.Operation.SelectionSet)
 
 		var buf bytes.Buffer
 		return func(ctx context.Context) *graphql.Response {
@@ -619,19 +617,172 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "schema.graphqls"
-var sourcesFS embed.FS
-
-func sourceData(filename string) string {
-	data, err := sourcesFS.ReadFile(filename)
-	if err != nil {
-		panic(fmt.Sprintf("codegen problem: %s not available", filename))
-	}
-	return string(data)
+var sources = []*ast.Source{
+	{Name: "../typeDefs/CustomItem.graphqls", Input: `type CustomItem {
+  "should be unique across items/customitems"
+  id: Int!
+  name: String!
+  "the dependency of the item for building a tree (only custom items)"
+  dependsOn: Int
+  variants: [Item!]!
+  "wheather multiple variants can be selected at once"
+  exclusive: Boolean!
 }
 
-var sources = []*ast.Source{
-	{Name: "schema.graphqls", Input: sourceData("schema.graphqls"), BuiltIn: false},
+input NewCustomItem {
+  id: Int!
+  name: String!
+  dependsOn: Int
+  variants: [Int!]!
+  exclusive: Boolean!
+}
+
+input UpdateCustomItem {
+  name: String
+  exclusive: Boolean
+}
+`, BuiltIn: false},
+	{Name: "../typeDefs/Item.graphqls", Input: `type Item {
+  "should be unique across items/customitems"
+  id: Int!
+  "eg.: cheesecake"
+  name: String!
+  price: Float!
+  "an url eg.: https://example.com/cheesecake"
+  image: String!
+  "wheather the item is in stock; if all variants of a customitems are out of stock, the customitem will also go out of stock"
+  available: Boolean!
+  "custom text which will be displayed to the user underneath the name"
+  identifier: String!
+  "false if the item is a variant"
+  isVariant: Boolean!
+}
+
+input UpdateItem {
+  name: String
+  price: Float
+  image: String
+  available: Boolean
+  identifier: String
+  isOneOff: Boolean
+}
+
+input NewItem {
+  id: Int!
+  name: String!
+  price: Float!
+  image: String!
+  available: Boolean!
+  identifier: String!
+  isoneoff: Boolean!
+}
+`, BuiltIn: false},
+	{Name: "../typeDefs/Order.graphqls", Input: `type OrderItem {
+  quantity: Int!
+  item: Item!
+}
+
+input NewOrderItem {
+  quantity: Int!
+  itemId: Int!
+}
+
+
+type OrderCustomItem {
+  quantity: Int!
+  customItem: CustomItem!
+}
+
+input NewOrderCustomItem {
+  customItemId: Int!
+  quantity: Int!
+  variants: [Int!]!
+}
+
+enum OrderState {
+  CREATED
+  PENDING
+  COMPLEATED
+  CANCELED
+}
+
+type Order {
+  id: Int! 
+  "UNIX Timestamp"
+  timestamp: Int64!
+  "A string generated sequencially to identifiy an OPEN order"
+  identifier: String!
+
+  state: OrderState!
+  total: Float!
+
+  items: [OrderItem!]!
+  customItems: [OrderCustomItem!]!
+}
+
+input NewOrder {
+  items: [NewOrderItem!]!
+  customItems: [NewOrderCustomItem!]!
+  "the total amount of money earned"
+  total: Float!
+}
+
+`, BuiltIn: false},
+	{Name: "../typeDefs/schema.graphqls", Input: `scalar Int64
+
+enum User {
+  ADMIN
+  USER
+}
+
+
+type Statistics {
+  totalOrders: Int!
+  totalOrdersCompleated: Int!
+  totalEarned: Float!
+}
+
+type Query {
+  getPermission: User!
+  getOrder(id: Int!): Order
+  getItems: [Item!]!
+  getCustomItems: [CustomItem!]!
+}
+
+
+type Mutation {
+  createOrder(order: NewOrder!): Order!
+  updateOrder(order: Int!, state: OrderState!): Order
+  "Only available to admins"
+  deleteOrder(order: Int!): Int!
+
+  updateItem(id: Int!, item: UpdateItem!): Item!
+  updateCustomItem(id: Int!, item: UpdateCustomItem!): CustomItem!
+
+  createItems(items: [NewItem!]!): [Int!]!
+  createCustomItems(items: [NewCustomItem!]!): [Int!]!
+}
+
+
+enum UpdateEvent {
+  UPDATE_CUSTOMITEM
+  UPDATE_ITEM
+}
+
+type Subscription {
+  orders(state: OrderState, id: Int, limit: Int, skip: Int, sortAsc: Boolean): [Order!]!
+  "The next order that should be worked on by the client"
+  nextOrder: Order
+  updates: UpdateEvent
+  stats: Statistics!
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -639,247 +790,557 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_createCustomItems_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_createCustomItems_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 []*model.CustomItemInput
-	if tmp, ok := rawArgs["items"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
-		arg0, err = ec.unmarshalNCustomItemInput2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemInputᚄ(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createCustomItems_argsItems(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["items"] = arg0
 	return args, nil
 }
+func (ec *executionContext) field_Mutation_createCustomItems_argsItems(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*NewCustomItem, error) {
+	if _, ok := rawArgs["items"]; !ok {
+		var zeroVal []*NewCustomItem
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Mutation_createItems_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 []*model.ItemInput
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
 	if tmp, ok := rawArgs["items"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
-		arg0, err = ec.unmarshalNItemInput2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemInputᚄ(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+		return ec.unmarshalNNewCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewCustomItemᚄ(ctx, tmp)
+	}
+
+	var zeroVal []*NewCustomItem
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createItems_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createItems_argsItems(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["items"] = arg0
 	return args, nil
 }
+func (ec *executionContext) field_Mutation_createItems_argsItems(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]*NewItem, error) {
+	if _, ok := rawArgs["items"]; !ok {
+		var zeroVal []*NewItem
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Mutation_createOrder_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
+	if tmp, ok := rawArgs["items"]; ok {
+		return ec.unmarshalNNewItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewItemᚄ(ctx, tmp)
+	}
+
+	var zeroVal []*NewItem
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 model.NewOrder
-	if tmp, ok := rawArgs["order"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
-		arg0, err = ec.unmarshalNNewOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrder(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createOrder_argsOrder(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["order"] = arg0
 	return args, nil
 }
+func (ec *executionContext) field_Mutation_createOrder_argsOrder(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (NewOrder, error) {
+	if _, ok := rawArgs["order"]; !ok {
+		var zeroVal NewOrder
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Mutation_deleteOrder_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 int
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
 	if tmp, ok := rawArgs["order"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+		return ec.unmarshalNNewOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrder(ctx, tmp)
+	}
+
+	var zeroVal NewOrder
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteOrder_argsOrder(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["order"] = arg0
 	return args, nil
 }
+func (ec *executionContext) field_Mutation_deleteOrder_argsOrder(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (int, error) {
+	if _, ok := rawArgs["order"]; !ok {
+		var zeroVal int
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Mutation_updateCustomItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
+	if tmp, ok := rawArgs["order"]; ok {
+		return ec.unmarshalNInt2int(ctx, tmp)
+	}
+
+	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCustomItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 int
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateCustomItem_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["id"] = arg0
-	var arg1 model.UpdateCustomItem
-	if tmp, ok := rawArgs["item"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
-		arg1, err = ec.unmarshalNUpdateCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateCustomItem(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg1, err := ec.field_Mutation_updateCustomItem_argsItem(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["item"] = arg1
 	return args, nil
 }
+func (ec *executionContext) field_Mutation_updateCustomItem_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (int, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal int
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Mutation_updateItem_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 int
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+		return ec.unmarshalNInt2int(ctx, tmp)
+	}
+
+	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCustomItem_argsItem(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (UpdateCustomItem, error) {
+	if _, ok := rawArgs["item"]; !ok {
+		var zeroVal UpdateCustomItem
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
+	if tmp, ok := rawArgs["item"]; ok {
+		return ec.unmarshalNUpdateCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUpdateCustomItem(ctx, tmp)
+	}
+
+	var zeroVal UpdateCustomItem
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateItem_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["id"] = arg0
-	var arg1 model.UpdateItem
-	if tmp, ok := rawArgs["item"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
-		arg1, err = ec.unmarshalNUpdateItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateItem(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg1, err := ec.field_Mutation_updateItem_argsItem(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["item"] = arg1
 	return args, nil
 }
+func (ec *executionContext) field_Mutation_updateItem_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (int, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal int
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Mutation_updateOrder_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNInt2int(ctx, tmp)
+	}
+
+	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateItem_argsItem(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (UpdateItem, error) {
+	if _, ok := rawArgs["item"]; !ok {
+		var zeroVal UpdateItem
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
+	if tmp, ok := rawArgs["item"]; ok {
+		return ec.unmarshalNUpdateItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUpdateItem(ctx, tmp)
+	}
+
+	var zeroVal UpdateItem
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 int
-	if tmp, ok := rawArgs["order"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateOrder_argsOrder(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["order"] = arg0
-	var arg1 model.OrderState
-	if tmp, ok := rawArgs["state"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
-		arg1, err = ec.unmarshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg1, err := ec.field_Mutation_updateOrder_argsState(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["state"] = arg1
 	return args, nil
 }
+func (ec *executionContext) field_Mutation_updateOrder_argsOrder(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (int, error) {
+	if _, ok := rawArgs["order"]; !ok {
+		var zeroVal int
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("order"))
+	if tmp, ok := rawArgs["order"]; ok {
+		return ec.unmarshalNInt2int(ctx, tmp)
+	}
+
+	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateOrder_argsState(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (OrderState, error) {
+	if _, ok := rawArgs["state"]; !ok {
+		var zeroVal OrderState
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
+	if tmp, ok := rawArgs["state"]; ok {
+		return ec.unmarshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx, tmp)
+	}
+
+	var zeroVal OrderState
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["name"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field_Query___type_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["name"] = arg0
 	return args, nil
 }
+func (ec *executionContext) field_Query___type_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["name"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Query_getOrder_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	if tmp, ok := rawArgs["name"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 int
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getOrder_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["id"] = arg0
 	return args, nil
 }
+func (ec *executionContext) field_Query_getOrder_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (int, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal int
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field_Subscription_orders_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNInt2int(ctx, tmp)
+	}
+
+	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Subscription_orders_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 *model.OrderState
-	if tmp, ok := rawArgs["state"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
-		arg0, err = ec.unmarshalOOrderState2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field_Subscription_orders_argsState(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["state"] = arg0
-	var arg1 *int
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg1, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg1, err := ec.field_Subscription_orders_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["id"] = arg1
-	var arg2 *int
-	if tmp, ok := rawArgs["limit"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-		arg2, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg2, err := ec.field_Subscription_orders_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["limit"] = arg2
-	var arg3 *int
-	if tmp, ok := rawArgs["skip"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("skip"))
-		arg3, err = ec.unmarshalOInt2ᚖint(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg3, err := ec.field_Subscription_orders_argsSkip(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["skip"] = arg3
-	var arg4 *bool
-	if tmp, ok := rawArgs["sortAsc"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sortAsc"))
-		arg4, err = ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	arg4, err := ec.field_Subscription_orders_argsSortAsc(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["sortAsc"] = arg4
 	return args, nil
 }
+func (ec *executionContext) field_Subscription_orders_argsState(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*OrderState, error) {
+	if _, ok := rawArgs["state"]; !ok {
+		var zeroVal *OrderState
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
+	if tmp, ok := rawArgs["state"]; ok {
+		return ec.unmarshalOOrderState2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx, tmp)
+	}
+
+	var zeroVal *OrderState
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Subscription_orders_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Subscription_orders_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Subscription_orders_argsSkip(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["skip"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("skip"))
+	if tmp, ok := rawArgs["skip"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Subscription_orders_argsSortAsc(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*bool, error) {
+	if _, ok := rawArgs["sortAsc"]; !ok {
+		var zeroVal *bool
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sortAsc"))
+	if tmp, ok := rawArgs["sortAsc"]; ok {
+		return ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
+	}
+
+	var zeroVal *bool
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field___Directive_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
-	args := map[string]interface{}{}
-	var arg0 bool
-	if tmp, ok := rawArgs["includeDeprecated"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("includeDeprecated"))
-		arg0, err = ec.unmarshalOBoolean2bool(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+	args := map[string]any{}
+	arg0, err := ec.field___Directive_args_argsIncludeDeprecated(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["includeDeprecated"] = arg0
 	return args, nil
 }
+func (ec *executionContext) field___Directive_args_argsIncludeDeprecated(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*bool, error) {
+	if _, ok := rawArgs["includeDeprecated"]; !ok {
+		var zeroVal *bool
+		return zeroVal, nil
+	}
 
-func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 bool
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("includeDeprecated"))
 	if tmp, ok := rawArgs["includeDeprecated"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("includeDeprecated"))
-		arg0, err = ec.unmarshalOBoolean2bool(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
+		return ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
+	}
+
+	var zeroVal *bool
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field___Field_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field___Field_args_argsIncludeDeprecated(ctx, rawArgs)
+	if err != nil {
+		return nil, err
 	}
 	args["includeDeprecated"] = arg0
 	return args, nil
+}
+func (ec *executionContext) field___Field_args_argsIncludeDeprecated(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*bool, error) {
+	if _, ok := rawArgs["includeDeprecated"]; !ok {
+		var zeroVal *bool
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("includeDeprecated"))
+	if tmp, ok := rawArgs["includeDeprecated"]; ok {
+		return ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
+	}
+
+	var zeroVal *bool
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field___Type_enumValues_argsIncludeDeprecated(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["includeDeprecated"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field___Type_enumValues_argsIncludeDeprecated(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (bool, error) {
+	if _, ok := rawArgs["includeDeprecated"]; !ok {
+		var zeroVal bool
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("includeDeprecated"))
+	if tmp, ok := rawArgs["includeDeprecated"]; ok {
+		return ec.unmarshalOBoolean2bool(ctx, tmp)
+	}
+
+	var zeroVal bool
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field___Type_fields_argsIncludeDeprecated(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["includeDeprecated"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field___Type_fields_argsIncludeDeprecated(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (bool, error) {
+	if _, ok := rawArgs["includeDeprecated"]; !ok {
+		var zeroVal bool
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("includeDeprecated"))
+	if tmp, ok := rawArgs["includeDeprecated"]; ok {
+		return ec.unmarshalOBoolean2bool(ctx, tmp)
+	}
+
+	var zeroVal bool
+	return zeroVal, nil
 }
 
 // endregion ***************************** args.gotpl *****************************
@@ -890,7 +1351,7 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _CustomItem_id(ctx context.Context, field graphql.CollectedField, obj *model.CustomItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _CustomItem_id(ctx context.Context, field graphql.CollectedField, obj *CustomItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CustomItem_id(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -902,7 +1363,7 @@ func (ec *executionContext) _CustomItem_id(ctx context.Context, field graphql.Co
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.ID, nil
 	})
@@ -934,7 +1395,7 @@ func (ec *executionContext) fieldContext_CustomItem_id(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _CustomItem_name(ctx context.Context, field graphql.CollectedField, obj *model.CustomItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _CustomItem_name(ctx context.Context, field graphql.CollectedField, obj *CustomItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CustomItem_name(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -946,7 +1407,7 @@ func (ec *executionContext) _CustomItem_name(ctx context.Context, field graphql.
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Name, nil
 	})
@@ -978,7 +1439,7 @@ func (ec *executionContext) fieldContext_CustomItem_name(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _CustomItem_dependsOn(ctx context.Context, field graphql.CollectedField, obj *model.CustomItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _CustomItem_dependsOn(ctx context.Context, field graphql.CollectedField, obj *CustomItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CustomItem_dependsOn(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -990,7 +1451,7 @@ func (ec *executionContext) _CustomItem_dependsOn(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.DependsOn, nil
 	})
@@ -1019,7 +1480,7 @@ func (ec *executionContext) fieldContext_CustomItem_dependsOn(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _CustomItem_variants(ctx context.Context, field graphql.CollectedField, obj *model.CustomItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _CustomItem_variants(ctx context.Context, field graphql.CollectedField, obj *CustomItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CustomItem_variants(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1031,7 +1492,7 @@ func (ec *executionContext) _CustomItem_variants(ctx context.Context, field grap
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Variants, nil
 	})
@@ -1045,9 +1506,9 @@ func (ec *executionContext) _CustomItem_variants(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Item)
+	res := resTmp.([]*Item)
 	fc.Result = res
-	return ec.marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemᚄ(ctx, field.Selections, res)
+	return ec.marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItemᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_CustomItem_variants(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1070,8 +1531,8 @@ func (ec *executionContext) fieldContext_CustomItem_variants(_ context.Context, 
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
-			case "isOneOff":
-				return ec.fieldContext_Item_isOneOff(ctx, field)
+			case "isVariant":
+				return ec.fieldContext_Item_isVariant(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -1079,7 +1540,7 @@ func (ec *executionContext) fieldContext_CustomItem_variants(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _CustomItem_exclusive(ctx context.Context, field graphql.CollectedField, obj *model.CustomItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _CustomItem_exclusive(ctx context.Context, field graphql.CollectedField, obj *CustomItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CustomItem_exclusive(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1091,7 +1552,7 @@ func (ec *executionContext) _CustomItem_exclusive(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Exclusive, nil
 	})
@@ -1123,7 +1584,7 @@ func (ec *executionContext) fieldContext_CustomItem_exclusive(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _Item_id(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
+func (ec *executionContext) _Item_id(ctx context.Context, field graphql.CollectedField, obj *Item) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Item_id(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1135,7 +1596,7 @@ func (ec *executionContext) _Item_id(ctx context.Context, field graphql.Collecte
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.ID, nil
 	})
@@ -1167,7 +1628,7 @@ func (ec *executionContext) fieldContext_Item_id(_ context.Context, field graphq
 	return fc, nil
 }
 
-func (ec *executionContext) _Item_name(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
+func (ec *executionContext) _Item_name(ctx context.Context, field graphql.CollectedField, obj *Item) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Item_name(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1179,7 +1640,7 @@ func (ec *executionContext) _Item_name(ctx context.Context, field graphql.Collec
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Name, nil
 	})
@@ -1211,7 +1672,7 @@ func (ec *executionContext) fieldContext_Item_name(_ context.Context, field grap
 	return fc, nil
 }
 
-func (ec *executionContext) _Item_price(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
+func (ec *executionContext) _Item_price(ctx context.Context, field graphql.CollectedField, obj *Item) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Item_price(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1223,7 +1684,7 @@ func (ec *executionContext) _Item_price(ctx context.Context, field graphql.Colle
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Price, nil
 	})
@@ -1255,7 +1716,7 @@ func (ec *executionContext) fieldContext_Item_price(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Item_image(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
+func (ec *executionContext) _Item_image(ctx context.Context, field graphql.CollectedField, obj *Item) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Item_image(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1267,7 +1728,7 @@ func (ec *executionContext) _Item_image(ctx context.Context, field graphql.Colle
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Image, nil
 	})
@@ -1299,7 +1760,7 @@ func (ec *executionContext) fieldContext_Item_image(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Item_available(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
+func (ec *executionContext) _Item_available(ctx context.Context, field graphql.CollectedField, obj *Item) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Item_available(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1311,7 +1772,7 @@ func (ec *executionContext) _Item_available(ctx context.Context, field graphql.C
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Available, nil
 	})
@@ -1343,7 +1804,7 @@ func (ec *executionContext) fieldContext_Item_available(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Item_identifier(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
+func (ec *executionContext) _Item_identifier(ctx context.Context, field graphql.CollectedField, obj *Item) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Item_identifier(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1355,7 +1816,7 @@ func (ec *executionContext) _Item_identifier(ctx context.Context, field graphql.
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Identifier, nil
 	})
@@ -1387,8 +1848,8 @@ func (ec *executionContext) fieldContext_Item_identifier(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Item_isOneOff(ctx context.Context, field graphql.CollectedField, obj *model.Item) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Item_isOneOff(ctx, field)
+func (ec *executionContext) _Item_isVariant(ctx context.Context, field graphql.CollectedField, obj *Item) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Item_isVariant(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1399,9 +1860,9 @@ func (ec *executionContext) _Item_isOneOff(ctx context.Context, field graphql.Co
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.IsOneOff, nil
+		return obj.IsVariant, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1418,7 +1879,7 @@ func (ec *executionContext) _Item_isOneOff(ctx context.Context, field graphql.Co
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Item_isOneOff(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Item_isVariant(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Item",
 		Field:      field,
@@ -1443,9 +1904,9 @@ func (ec *executionContext) _Mutation_createOrder(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateOrder(rctx, fc.Args["order"].(model.NewOrder))
+		return ec.resolvers.Mutation().CreateOrder(rctx, fc.Args["order"].(NewOrder))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1457,9 +1918,9 @@ func (ec *executionContext) _Mutation_createOrder(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Order)
+	res := resTmp.(*Order)
 	fc.Result = res
-	return ec.marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
+	return ec.marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_createOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1514,9 +1975,9 @@ func (ec *executionContext) _Mutation_updateOrder(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateOrder(rctx, fc.Args["order"].(int), fc.Args["state"].(model.OrderState))
+		return ec.resolvers.Mutation().UpdateOrder(rctx, fc.Args["order"].(int), fc.Args["state"].(OrderState))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1525,9 +1986,9 @@ func (ec *executionContext) _Mutation_updateOrder(ctx context.Context, field gra
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.Order)
+	res := resTmp.(*Order)
 	fc.Result = res
-	return ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
+	return ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_updateOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1582,7 +2043,7 @@ func (ec *executionContext) _Mutation_deleteOrder(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Mutation().DeleteOrder(rctx, fc.Args["order"].(int))
 	})
@@ -1637,9 +2098,9 @@ func (ec *executionContext) _Mutation_updateItem(ctx context.Context, field grap
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateItem(rctx, fc.Args["id"].(int), fc.Args["item"].(model.UpdateItem))
+		return ec.resolvers.Mutation().UpdateItem(rctx, fc.Args["id"].(int), fc.Args["item"].(UpdateItem))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1651,9 +2112,9 @@ func (ec *executionContext) _Mutation_updateItem(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Item)
+	res := resTmp.(*Item)
 	fc.Result = res
-	return ec.marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItem(ctx, field.Selections, res)
+	return ec.marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_updateItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1676,8 +2137,8 @@ func (ec *executionContext) fieldContext_Mutation_updateItem(ctx context.Context
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
-			case "isOneOff":
-				return ec.fieldContext_Item_isOneOff(ctx, field)
+			case "isVariant":
+				return ec.fieldContext_Item_isVariant(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -1708,9 +2169,9 @@ func (ec *executionContext) _Mutation_updateCustomItem(ctx context.Context, fiel
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateCustomItem(rctx, fc.Args["id"].(int), fc.Args["item"].(model.UpdateCustomItem))
+		return ec.resolvers.Mutation().UpdateCustomItem(rctx, fc.Args["id"].(int), fc.Args["item"].(UpdateCustomItem))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1722,9 +2183,9 @@ func (ec *executionContext) _Mutation_updateCustomItem(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.CustomItem)
+	res := resTmp.(*CustomItem)
 	fc.Result = res
-	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx, field.Selections, res)
+	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐCustomItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_updateCustomItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1775,9 +2236,9 @@ func (ec *executionContext) _Mutation_createItems(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateItems(rctx, fc.Args["items"].([]*model.ItemInput))
+		return ec.resolvers.Mutation().CreateItems(rctx, fc.Args["items"].([]*NewItem))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1830,9 +2291,9 @@ func (ec *executionContext) _Mutation_createCustomItems(ctx context.Context, fie
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateCustomItems(rctx, fc.Args["items"].([]*model.CustomItemInput))
+		return ec.resolvers.Mutation().CreateCustomItems(rctx, fc.Args["items"].([]*NewCustomItem))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1873,7 +2334,7 @@ func (ec *executionContext) fieldContext_Mutation_createCustomItems(ctx context.
 	return fc, nil
 }
 
-func (ec *executionContext) _Order_id(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+func (ec *executionContext) _Order_id(ctx context.Context, field graphql.CollectedField, obj *Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_id(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1885,7 +2346,7 @@ func (ec *executionContext) _Order_id(ctx context.Context, field graphql.Collect
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.ID, nil
 	})
@@ -1917,7 +2378,7 @@ func (ec *executionContext) fieldContext_Order_id(_ context.Context, field graph
 	return fc, nil
 }
 
-func (ec *executionContext) _Order_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+func (ec *executionContext) _Order_timestamp(ctx context.Context, field graphql.CollectedField, obj *Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_timestamp(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1929,7 +2390,7 @@ func (ec *executionContext) _Order_timestamp(ctx context.Context, field graphql.
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Timestamp, nil
 	})
@@ -1961,7 +2422,7 @@ func (ec *executionContext) fieldContext_Order_timestamp(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Order_identifier(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+func (ec *executionContext) _Order_identifier(ctx context.Context, field graphql.CollectedField, obj *Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_identifier(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1973,7 +2434,7 @@ func (ec *executionContext) _Order_identifier(ctx context.Context, field graphql
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Identifier, nil
 	})
@@ -2005,7 +2466,7 @@ func (ec *executionContext) fieldContext_Order_identifier(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Order_state(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+func (ec *executionContext) _Order_state(ctx context.Context, field graphql.CollectedField, obj *Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_state(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2017,7 +2478,7 @@ func (ec *executionContext) _Order_state(ctx context.Context, field graphql.Coll
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.State, nil
 	})
@@ -2031,9 +2492,9 @@ func (ec *executionContext) _Order_state(ctx context.Context, field graphql.Coll
 		}
 		return graphql.Null
 	}
-	res := resTmp.(model.OrderState)
+	res := resTmp.(OrderState)
 	fc.Result = res
-	return ec.marshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx, field.Selections, res)
+	return ec.marshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Order_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2049,7 +2510,7 @@ func (ec *executionContext) fieldContext_Order_state(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Order_total(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+func (ec *executionContext) _Order_total(ctx context.Context, field graphql.CollectedField, obj *Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_total(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2061,7 +2522,7 @@ func (ec *executionContext) _Order_total(ctx context.Context, field graphql.Coll
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Total, nil
 	})
@@ -2093,7 +2554,7 @@ func (ec *executionContext) fieldContext_Order_total(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Order_items(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+func (ec *executionContext) _Order_items(ctx context.Context, field graphql.CollectedField, obj *Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_items(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2105,7 +2566,7 @@ func (ec *executionContext) _Order_items(ctx context.Context, field graphql.Coll
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Items, nil
 	})
@@ -2119,9 +2580,9 @@ func (ec *executionContext) _Order_items(ctx context.Context, field graphql.Coll
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.OrderItem)
+	res := resTmp.([]*OrderItem)
 	fc.Result = res
-	return ec.marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItemᚄ(ctx, field.Selections, res)
+	return ec.marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderItemᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Order_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2143,7 +2604,7 @@ func (ec *executionContext) fieldContext_Order_items(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Order_customItems(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+func (ec *executionContext) _Order_customItems(ctx context.Context, field graphql.CollectedField, obj *Order) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Order_customItems(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2155,7 +2616,7 @@ func (ec *executionContext) _Order_customItems(ctx context.Context, field graphq
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.CustomItems, nil
 	})
@@ -2169,9 +2630,9 @@ func (ec *executionContext) _Order_customItems(ctx context.Context, field graphq
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.OrderCustomItem)
+	res := resTmp.([]*OrderCustomItem)
 	fc.Result = res
-	return ec.marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItemᚄ(ctx, field.Selections, res)
+	return ec.marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderCustomItemᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Order_customItems(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2193,7 +2654,7 @@ func (ec *executionContext) fieldContext_Order_customItems(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _OrderCustomItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.OrderCustomItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _OrderCustomItem_quantity(ctx context.Context, field graphql.CollectedField, obj *OrderCustomItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OrderCustomItem_quantity(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2205,7 +2666,7 @@ func (ec *executionContext) _OrderCustomItem_quantity(ctx context.Context, field
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Quantity, nil
 	})
@@ -2237,7 +2698,7 @@ func (ec *executionContext) fieldContext_OrderCustomItem_quantity(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _OrderCustomItem_customItem(ctx context.Context, field graphql.CollectedField, obj *model.OrderCustomItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _OrderCustomItem_customItem(ctx context.Context, field graphql.CollectedField, obj *OrderCustomItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OrderCustomItem_customItem(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2249,7 +2710,7 @@ func (ec *executionContext) _OrderCustomItem_customItem(ctx context.Context, fie
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.CustomItem, nil
 	})
@@ -2263,9 +2724,9 @@ func (ec *executionContext) _OrderCustomItem_customItem(ctx context.Context, fie
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.CustomItem)
+	res := resTmp.(*CustomItem)
 	fc.Result = res
-	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx, field.Selections, res)
+	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐCustomItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_OrderCustomItem_customItem(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2293,7 +2754,7 @@ func (ec *executionContext) fieldContext_OrderCustomItem_customItem(_ context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graphql.CollectedField, obj *OrderItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OrderItem_quantity(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2305,7 +2766,7 @@ func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graph
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Quantity, nil
 	})
@@ -2337,7 +2798,7 @@ func (ec *executionContext) fieldContext_OrderItem_quantity(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _OrderItem_item(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _OrderItem_item(ctx context.Context, field graphql.CollectedField, obj *OrderItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OrderItem_item(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2349,7 +2810,7 @@ func (ec *executionContext) _OrderItem_item(ctx context.Context, field graphql.C
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Item, nil
 	})
@@ -2363,9 +2824,9 @@ func (ec *executionContext) _OrderItem_item(ctx context.Context, field graphql.C
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Item)
+	res := resTmp.(*Item)
 	fc.Result = res
-	return ec.marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItem(ctx, field.Selections, res)
+	return ec.marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItem(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_OrderItem_item(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2388,8 +2849,8 @@ func (ec *executionContext) fieldContext_OrderItem_item(_ context.Context, field
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
-			case "isOneOff":
-				return ec.fieldContext_Item_isOneOff(ctx, field)
+			case "isVariant":
+				return ec.fieldContext_Item_isVariant(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -2409,7 +2870,7 @@ func (ec *executionContext) _Query_getPermission(ctx context.Context, field grap
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Query().GetPermission(rctx)
 	})
@@ -2423,9 +2884,9 @@ func (ec *executionContext) _Query_getPermission(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(model.User)
+	res := resTmp.(User)
 	fc.Result = res
-	return ec.marshalNUser2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getPermission(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2453,7 +2914,7 @@ func (ec *executionContext) _Query_getOrder(ctx context.Context, field graphql.C
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Query().GetOrder(rctx, fc.Args["id"].(int))
 	})
@@ -2464,9 +2925,9 @@ func (ec *executionContext) _Query_getOrder(ctx context.Context, field graphql.C
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.Order)
+	res := resTmp.(*Order)
 	fc.Result = res
-	return ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
+	return ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2521,7 +2982,7 @@ func (ec *executionContext) _Query_getItems(ctx context.Context, field graphql.C
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Query().GetItems(rctx)
 	})
@@ -2535,9 +2996,9 @@ func (ec *executionContext) _Query_getItems(ctx context.Context, field graphql.C
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Item)
+	res := resTmp.([]*Item)
 	fc.Result = res
-	return ec.marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemᚄ(ctx, field.Selections, res)
+	return ec.marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItemᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getItems(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2560,8 +3021,8 @@ func (ec *executionContext) fieldContext_Query_getItems(_ context.Context, field
 				return ec.fieldContext_Item_available(ctx, field)
 			case "identifier":
 				return ec.fieldContext_Item_identifier(ctx, field)
-			case "isOneOff":
-				return ec.fieldContext_Item_isOneOff(ctx, field)
+			case "isVariant":
+				return ec.fieldContext_Item_isVariant(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Item", field.Name)
 		},
@@ -2581,7 +3042,7 @@ func (ec *executionContext) _Query_getCustomItems(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Query().GetCustomItems(rctx)
 	})
@@ -2595,9 +3056,9 @@ func (ec *executionContext) _Query_getCustomItems(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.CustomItem)
+	res := resTmp.([]*CustomItem)
 	fc.Result = res
-	return ec.marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemᚄ(ctx, field.Selections, res)
+	return ec.marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐCustomItemᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getCustomItems(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2637,7 +3098,7 @@ func (ec *executionContext) _Query___type(ctx context.Context, field graphql.Col
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.introspectType(fc.Args["name"].(string))
 	})
@@ -2667,6 +3128,8 @@ func (ec *executionContext) fieldContext_Query___type(ctx context.Context, field
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -2679,8 +3142,8 @@ func (ec *executionContext) fieldContext_Query___type(ctx context.Context, field
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -2711,7 +3174,7 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.introspectSchema()
 	})
@@ -2754,7 +3217,7 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Statistics_totalOrders(ctx context.Context, field graphql.CollectedField, obj *model.Statistics) (ret graphql.Marshaler) {
+func (ec *executionContext) _Statistics_totalOrders(ctx context.Context, field graphql.CollectedField, obj *Statistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Statistics_totalOrders(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2766,7 +3229,7 @@ func (ec *executionContext) _Statistics_totalOrders(ctx context.Context, field g
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.TotalOrders, nil
 	})
@@ -2798,7 +3261,7 @@ func (ec *executionContext) fieldContext_Statistics_totalOrders(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Statistics_totalOrdersCompleated(ctx context.Context, field graphql.CollectedField, obj *model.Statistics) (ret graphql.Marshaler) {
+func (ec *executionContext) _Statistics_totalOrdersCompleated(ctx context.Context, field graphql.CollectedField, obj *Statistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Statistics_totalOrdersCompleated(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2810,7 +3273,7 @@ func (ec *executionContext) _Statistics_totalOrdersCompleated(ctx context.Contex
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.TotalOrdersCompleated, nil
 	})
@@ -2842,7 +3305,7 @@ func (ec *executionContext) fieldContext_Statistics_totalOrdersCompleated(_ cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Statistics_totalEarned(ctx context.Context, field graphql.CollectedField, obj *model.Statistics) (ret graphql.Marshaler) {
+func (ec *executionContext) _Statistics_totalEarned(ctx context.Context, field graphql.CollectedField, obj *Statistics) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Statistics_totalEarned(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -2854,7 +3317,7 @@ func (ec *executionContext) _Statistics_totalEarned(ctx context.Context, field g
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.TotalEarned, nil
 	})
@@ -2898,9 +3361,9 @@ func (ec *executionContext) _Subscription_orders(ctx context.Context, field grap
 			ret = nil
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().Orders(rctx, fc.Args["state"].(*model.OrderState), fc.Args["id"].(*int), fc.Args["limit"].(*int), fc.Args["skip"].(*int), fc.Args["sortAsc"].(*bool))
+		return ec.resolvers.Subscription().Orders(rctx, fc.Args["state"].(*OrderState), fc.Args["id"].(*int), fc.Args["limit"].(*int), fc.Args["skip"].(*int), fc.Args["sortAsc"].(*bool))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2914,7 +3377,7 @@ func (ec *executionContext) _Subscription_orders(ctx context.Context, field grap
 	}
 	return func(ctx context.Context) graphql.Marshaler {
 		select {
-		case res, ok := <-resTmp.(<-chan []*model.Order):
+		case res, ok := <-resTmp.(<-chan []*Order):
 			if !ok {
 				return nil
 			}
@@ -2922,7 +3385,7 @@ func (ec *executionContext) _Subscription_orders(ctx context.Context, field grap
 				w.Write([]byte{'{'})
 				graphql.MarshalString(field.Alias).MarshalGQL(w)
 				w.Write([]byte{':'})
-				ec.marshalNOrder2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderᚄ(ctx, field.Selections, res).MarshalGQL(w)
+				ec.marshalNOrder2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderᚄ(ctx, field.Selections, res).MarshalGQL(w)
 				w.Write([]byte{'}'})
 			})
 		case <-ctx.Done():
@@ -2983,7 +3446,7 @@ func (ec *executionContext) _Subscription_nextOrder(ctx context.Context, field g
 			ret = nil
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Subscription().NextOrder(rctx)
 	})
@@ -2996,7 +3459,7 @@ func (ec *executionContext) _Subscription_nextOrder(ctx context.Context, field g
 	}
 	return func(ctx context.Context) graphql.Marshaler {
 		select {
-		case res, ok := <-resTmp.(<-chan *model.Order):
+		case res, ok := <-resTmp.(<-chan *Order):
 			if !ok {
 				return nil
 			}
@@ -3004,7 +3467,7 @@ func (ec *executionContext) _Subscription_nextOrder(ctx context.Context, field g
 				w.Write([]byte{'{'})
 				graphql.MarshalString(field.Alias).MarshalGQL(w)
 				w.Write([]byte{':'})
-				ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res).MarshalGQL(w)
+				ec.marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx, field.Selections, res).MarshalGQL(w)
 				w.Write([]byte{'}'})
 			})
 		case <-ctx.Done():
@@ -3054,7 +3517,7 @@ func (ec *executionContext) _Subscription_updates(ctx context.Context, field gra
 			ret = nil
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Subscription().Updates(rctx)
 	})
@@ -3067,7 +3530,7 @@ func (ec *executionContext) _Subscription_updates(ctx context.Context, field gra
 	}
 	return func(ctx context.Context) graphql.Marshaler {
 		select {
-		case res, ok := <-resTmp.(<-chan *model.UpdateEvent):
+		case res, ok := <-resTmp.(<-chan *UpdateEvent):
 			if !ok {
 				return nil
 			}
@@ -3075,7 +3538,7 @@ func (ec *executionContext) _Subscription_updates(ctx context.Context, field gra
 				w.Write([]byte{'{'})
 				graphql.MarshalString(field.Alias).MarshalGQL(w)
 				w.Write([]byte{':'})
-				ec.marshalOUpdateEvent2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateEvent(ctx, field.Selections, res).MarshalGQL(w)
+				ec.marshalOUpdateEvent2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUpdateEvent(ctx, field.Selections, res).MarshalGQL(w)
 				w.Write([]byte{'}'})
 			})
 		case <-ctx.Done():
@@ -3109,7 +3572,7 @@ func (ec *executionContext) _Subscription_stats(ctx context.Context, field graph
 			ret = nil
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Subscription().Stats(rctx)
 	})
@@ -3125,7 +3588,7 @@ func (ec *executionContext) _Subscription_stats(ctx context.Context, field graph
 	}
 	return func(ctx context.Context) graphql.Marshaler {
 		select {
-		case res, ok := <-resTmp.(<-chan *model.Statistics):
+		case res, ok := <-resTmp.(<-chan *Statistics):
 			if !ok {
 				return nil
 			}
@@ -3133,7 +3596,7 @@ func (ec *executionContext) _Subscription_stats(ctx context.Context, field graph
 				w.Write([]byte{'{'})
 				graphql.MarshalString(field.Alias).MarshalGQL(w)
 				w.Write([]byte{':'})
-				ec.marshalNStatistics2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐStatistics(ctx, field.Selections, res).MarshalGQL(w)
+				ec.marshalNStatistics2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐStatistics(ctx, field.Selections, res).MarshalGQL(w)
 				w.Write([]byte{'}'})
 			})
 		case <-ctx.Done():
@@ -3175,7 +3638,7 @@ func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Name, nil
 	})
@@ -3219,7 +3682,7 @@ func (ec *executionContext) ___Directive_description(ctx context.Context, field 
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Description(), nil
 	})
@@ -3248,6 +3711,50 @@ func (ec *executionContext) fieldContext___Directive_description(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) ___Directive_isRepeatable(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext___Directive_isRepeatable(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsRepeatable, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext___Directive_isRepeatable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "__Directive",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) ___Directive_locations(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext___Directive_locations(ctx, field)
 	if err != nil {
@@ -3260,7 +3767,7 @@ func (ec *executionContext) ___Directive_locations(ctx context.Context, field gr
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Locations, nil
 	})
@@ -3304,7 +3811,7 @@ func (ec *executionContext) ___Directive_args(ctx context.Context, field graphql
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Args, nil
 	})
@@ -3323,7 +3830,7 @@ func (ec *executionContext) ___Directive_args(ctx context.Context, field graphql
 	return ec.marshalN__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValueᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext___Directive_args(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext___Directive_args(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "__Directive",
 		Field:      field,
@@ -3339,53 +3846,24 @@ func (ec *executionContext) fieldContext___Directive_args(_ context.Context, fie
 				return ec.fieldContext___InputValue_type(ctx, field)
 			case "defaultValue":
 				return ec.fieldContext___InputValue_defaultValue(ctx, field)
+			case "isDeprecated":
+				return ec.fieldContext___InputValue_isDeprecated(ctx, field)
+			case "deprecationReason":
+				return ec.fieldContext___InputValue_deprecationReason(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __InputValue", field.Name)
 		},
 	}
-	return fc, nil
-}
-
-func (ec *executionContext) ___Directive_isRepeatable(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext___Directive_isRepeatable(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
 	defer func() {
 		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.IsRepeatable, nil
-	})
-	if err != nil {
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field___Directive_args_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext___Directive_isRepeatable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "__Directive",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
+		return fc, err
 	}
 	return fc, nil
 }
@@ -3402,7 +3880,7 @@ func (ec *executionContext) ___EnumValue_name(ctx context.Context, field graphql
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Name, nil
 	})
@@ -3446,7 +3924,7 @@ func (ec *executionContext) ___EnumValue_description(ctx context.Context, field 
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Description(), nil
 	})
@@ -3487,7 +3965,7 @@ func (ec *executionContext) ___EnumValue_isDeprecated(ctx context.Context, field
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.IsDeprecated(), nil
 	})
@@ -3531,7 +4009,7 @@ func (ec *executionContext) ___EnumValue_deprecationReason(ctx context.Context, 
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.DeprecationReason(), nil
 	})
@@ -3572,7 +4050,7 @@ func (ec *executionContext) ___Field_name(ctx context.Context, field graphql.Col
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Name, nil
 	})
@@ -3616,7 +4094,7 @@ func (ec *executionContext) ___Field_description(ctx context.Context, field grap
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Description(), nil
 	})
@@ -3657,7 +4135,7 @@ func (ec *executionContext) ___Field_args(ctx context.Context, field graphql.Col
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Args, nil
 	})
@@ -3676,7 +4154,7 @@ func (ec *executionContext) ___Field_args(ctx context.Context, field graphql.Col
 	return ec.marshalN__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValueᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext___Field_args(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext___Field_args(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "__Field",
 		Field:      field,
@@ -3692,9 +4170,24 @@ func (ec *executionContext) fieldContext___Field_args(_ context.Context, field g
 				return ec.fieldContext___InputValue_type(ctx, field)
 			case "defaultValue":
 				return ec.fieldContext___InputValue_defaultValue(ctx, field)
+			case "isDeprecated":
+				return ec.fieldContext___InputValue_isDeprecated(ctx, field)
+			case "deprecationReason":
+				return ec.fieldContext___InputValue_deprecationReason(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __InputValue", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field___Field_args_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -3711,7 +4204,7 @@ func (ec *executionContext) ___Field_type(ctx context.Context, field graphql.Col
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Type, nil
 	})
@@ -3744,6 +4237,8 @@ func (ec *executionContext) fieldContext___Field_type(_ context.Context, field g
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -3756,8 +4251,8 @@ func (ec *executionContext) fieldContext___Field_type(_ context.Context, field g
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -3777,7 +4272,7 @@ func (ec *executionContext) ___Field_isDeprecated(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.IsDeprecated(), nil
 	})
@@ -3821,7 +4316,7 @@ func (ec *executionContext) ___Field_deprecationReason(ctx context.Context, fiel
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.DeprecationReason(), nil
 	})
@@ -3862,7 +4357,7 @@ func (ec *executionContext) ___InputValue_name(ctx context.Context, field graphq
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Name, nil
 	})
@@ -3906,7 +4401,7 @@ func (ec *executionContext) ___InputValue_description(ctx context.Context, field
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Description(), nil
 	})
@@ -3947,7 +4442,7 @@ func (ec *executionContext) ___InputValue_type(ctx context.Context, field graphq
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Type, nil
 	})
@@ -3980,6 +4475,8 @@ func (ec *executionContext) fieldContext___InputValue_type(_ context.Context, fi
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -3992,8 +4489,8 @@ func (ec *executionContext) fieldContext___InputValue_type(_ context.Context, fi
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4013,7 +4510,7 @@ func (ec *executionContext) ___InputValue_defaultValue(ctx context.Context, fiel
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.DefaultValue, nil
 	})
@@ -4042,6 +4539,91 @@ func (ec *executionContext) fieldContext___InputValue_defaultValue(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) ___InputValue_isDeprecated(ctx context.Context, field graphql.CollectedField, obj *introspection.InputValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext___InputValue_isDeprecated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsDeprecated(), nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext___InputValue_isDeprecated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "__InputValue",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) ___InputValue_deprecationReason(ctx context.Context, field graphql.CollectedField, obj *introspection.InputValue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext___InputValue_deprecationReason(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DeprecationReason(), nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext___InputValue_deprecationReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "__InputValue",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) ___Schema_description(ctx context.Context, field graphql.CollectedField, obj *introspection.Schema) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext___Schema_description(ctx, field)
 	if err != nil {
@@ -4054,7 +4636,7 @@ func (ec *executionContext) ___Schema_description(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Description(), nil
 	})
@@ -4095,7 +4677,7 @@ func (ec *executionContext) ___Schema_types(ctx context.Context, field graphql.C
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Types(), nil
 	})
@@ -4128,6 +4710,8 @@ func (ec *executionContext) fieldContext___Schema_types(_ context.Context, field
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -4140,8 +4724,8 @@ func (ec *executionContext) fieldContext___Schema_types(_ context.Context, field
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4161,7 +4745,7 @@ func (ec *executionContext) ___Schema_queryType(ctx context.Context, field graph
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.QueryType(), nil
 	})
@@ -4194,6 +4778,8 @@ func (ec *executionContext) fieldContext___Schema_queryType(_ context.Context, f
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -4206,8 +4792,8 @@ func (ec *executionContext) fieldContext___Schema_queryType(_ context.Context, f
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4227,7 +4813,7 @@ func (ec *executionContext) ___Schema_mutationType(ctx context.Context, field gr
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.MutationType(), nil
 	})
@@ -4257,6 +4843,8 @@ func (ec *executionContext) fieldContext___Schema_mutationType(_ context.Context
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -4269,8 +4857,8 @@ func (ec *executionContext) fieldContext___Schema_mutationType(_ context.Context
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4290,7 +4878,7 @@ func (ec *executionContext) ___Schema_subscriptionType(ctx context.Context, fiel
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.SubscriptionType(), nil
 	})
@@ -4320,6 +4908,8 @@ func (ec *executionContext) fieldContext___Schema_subscriptionType(_ context.Con
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -4332,8 +4922,8 @@ func (ec *executionContext) fieldContext___Schema_subscriptionType(_ context.Con
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4353,7 +4943,7 @@ func (ec *executionContext) ___Schema_directives(ctx context.Context, field grap
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Directives(), nil
 	})
@@ -4384,12 +4974,12 @@ func (ec *executionContext) fieldContext___Schema_directives(_ context.Context, 
 				return ec.fieldContext___Directive_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Directive_description(ctx, field)
+			case "isRepeatable":
+				return ec.fieldContext___Directive_isRepeatable(ctx, field)
 			case "locations":
 				return ec.fieldContext___Directive_locations(ctx, field)
 			case "args":
 				return ec.fieldContext___Directive_args(ctx, field)
-			case "isRepeatable":
-				return ec.fieldContext___Directive_isRepeatable(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Directive", field.Name)
 		},
@@ -4409,7 +4999,7 @@ func (ec *executionContext) ___Type_kind(ctx context.Context, field graphql.Coll
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Kind(), nil
 	})
@@ -4453,7 +5043,7 @@ func (ec *executionContext) ___Type_name(ctx context.Context, field graphql.Coll
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Name(), nil
 	})
@@ -4494,7 +5084,7 @@ func (ec *executionContext) ___Type_description(ctx context.Context, field graph
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Description(), nil
 	})
@@ -4523,6 +5113,47 @@ func (ec *executionContext) fieldContext___Type_description(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) ___Type_specifiedByURL(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext___Type_specifiedByURL(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SpecifiedByURL(), nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext___Type_specifiedByURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "__Type",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) ___Type_fields(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext___Type_fields(ctx, field)
 	if err != nil {
@@ -4535,7 +5166,7 @@ func (ec *executionContext) ___Type_fields(ctx context.Context, field graphql.Co
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Fields(fc.Args["includeDeprecated"].(bool)), nil
 	})
@@ -4601,7 +5232,7 @@ func (ec *executionContext) ___Type_interfaces(ctx context.Context, field graphq
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Interfaces(), nil
 	})
@@ -4631,6 +5262,8 @@ func (ec *executionContext) fieldContext___Type_interfaces(_ context.Context, fi
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -4643,8 +5276,8 @@ func (ec *executionContext) fieldContext___Type_interfaces(_ context.Context, fi
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4664,7 +5297,7 @@ func (ec *executionContext) ___Type_possibleTypes(ctx context.Context, field gra
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.PossibleTypes(), nil
 	})
@@ -4694,6 +5327,8 @@ func (ec *executionContext) fieldContext___Type_possibleTypes(_ context.Context,
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -4706,8 +5341,8 @@ func (ec *executionContext) fieldContext___Type_possibleTypes(_ context.Context,
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4727,7 +5362,7 @@ func (ec *executionContext) ___Type_enumValues(ctx context.Context, field graphq
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.EnumValues(fc.Args["includeDeprecated"].(bool)), nil
 	})
@@ -4789,7 +5424,7 @@ func (ec *executionContext) ___Type_inputFields(ctx context.Context, field graph
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.InputFields(), nil
 	})
@@ -4821,6 +5456,10 @@ func (ec *executionContext) fieldContext___Type_inputFields(_ context.Context, f
 				return ec.fieldContext___InputValue_type(ctx, field)
 			case "defaultValue":
 				return ec.fieldContext___InputValue_defaultValue(ctx, field)
+			case "isDeprecated":
+				return ec.fieldContext___InputValue_isDeprecated(ctx, field)
+			case "deprecationReason":
+				return ec.fieldContext___InputValue_deprecationReason(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __InputValue", field.Name)
 		},
@@ -4840,7 +5479,7 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.OfType(), nil
 	})
@@ -4870,6 +5509,8 @@ func (ec *executionContext) fieldContext___Type_ofType(_ context.Context, field 
 				return ec.fieldContext___Type_name(ctx, field)
 			case "description":
 				return ec.fieldContext___Type_description(ctx, field)
+			case "specifiedByURL":
+				return ec.fieldContext___Type_specifiedByURL(ctx, field)
 			case "fields":
 				return ec.fieldContext___Type_fields(ctx, field)
 			case "interfaces":
@@ -4882,8 +5523,8 @@ func (ec *executionContext) fieldContext___Type_ofType(_ context.Context, field 
 				return ec.fieldContext___Type_inputFields(ctx, field)
 			case "ofType":
 				return ec.fieldContext___Type_ofType(ctx, field)
-			case "specifiedByURL":
-				return ec.fieldContext___Type_specifiedByURL(ctx, field)
+			case "isOneOf":
+				return ec.fieldContext___Type_isOneOf(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 		},
@@ -4891,8 +5532,8 @@ func (ec *executionContext) fieldContext___Type_ofType(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) ___Type_specifiedByURL(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext___Type_specifiedByURL(ctx, field)
+func (ec *executionContext) ___Type_isOneOf(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext___Type_isOneOf(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4903,9 +5544,9 @@ func (ec *executionContext) ___Type_specifiedByURL(ctx context.Context, field gr
 			ret = graphql.Null
 		}
 	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.SpecifiedByURL(), nil
+		return obj.IsOneOf(), nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4914,19 +5555,19 @@ func (ec *executionContext) ___Type_specifiedByURL(ctx context.Context, field gr
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(bool)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOBoolean2bool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext___Type_specifiedByURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "__Type",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4936,10 +5577,10 @@ func (ec *executionContext) fieldContext___Type_specifiedByURL(_ context.Context
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputCustomItemInput(ctx context.Context, obj interface{}) (model.CustomItemInput, error) {
-	var it model.CustomItemInput
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+func (ec *executionContext) unmarshalInputNewCustomItem(ctx context.Context, obj any) (NewCustomItem, error) {
+	var it NewCustomItem
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
@@ -4991,14 +5632,14 @@ func (ec *executionContext) unmarshalInputCustomItemInput(ctx context.Context, o
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputItemInput(ctx context.Context, obj interface{}) (model.ItemInput, error) {
-	var it model.ItemInput
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+func (ec *executionContext) unmarshalInputNewItem(ctx context.Context, obj any) (NewItem, error) {
+	var it NewItem
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "price", "image", "available", "identifier", "isOneOff"}
+	fieldsInOrder := [...]string{"id", "name", "price", "image", "available", "identifier", "isoneoff"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5047,40 +5688,81 @@ func (ec *executionContext) unmarshalInputItemInput(ctx context.Context, obj int
 				return it, err
 			}
 			it.Identifier = data
-		case "isOneOff":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isOneOff"))
+		case "isoneoff":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isoneoff"))
 			data, err := ec.unmarshalNBoolean2bool(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.IsOneOff = data
+			it.Isoneoff = data
 		}
 	}
 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputNewCustomItem(ctx context.Context, obj interface{}) (model.NewCustomItem, error) {
-	var it model.NewCustomItem
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+func (ec *executionContext) unmarshalInputNewOrder(ctx context.Context, obj any) (NewOrder, error) {
+	var it NewOrder
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "quantity", "variants"}
+	fieldsInOrder := [...]string{"items", "customItems", "total"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "id":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		case "items":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
+			data, err := ec.unmarshalNNewOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderItemᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Items = data
+		case "customItems":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customItems"))
+			data, err := ec.unmarshalNNewOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderCustomItemᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CustomItems = data
+		case "total":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("total"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Total = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputNewOrderCustomItem(ctx context.Context, obj any) (NewOrderCustomItem, error) {
+	var it NewOrderCustomItem
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"customItemId", "quantity", "variants"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "customItemId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customItemId"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ID = data
+			it.CustomItemID = data
 		case "quantity":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quantity"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
@@ -5101,55 +5783,14 @@ func (ec *executionContext) unmarshalInputNewCustomItem(ctx context.Context, obj
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputNewOrder(ctx context.Context, obj interface{}) (model.NewOrder, error) {
-	var it model.NewOrder
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+func (ec *executionContext) unmarshalInputNewOrderItem(ctx context.Context, obj any) (NewOrderItem, error) {
+	var it NewOrderItem
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"items", "customItems", "total"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "items":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
-			data, err := ec.unmarshalNNewOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItemᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Items = data
-		case "customItems":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customItems"))
-			data, err := ec.unmarshalNNewCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewCustomItemᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CustomItems = data
-		case "total":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("total"))
-			data, err := ec.unmarshalNFloat2float64(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Total = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputNewOrderItem(ctx context.Context, obj interface{}) (model.NewOrderItem, error) {
-	var it model.NewOrderItem
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"quantity", "item"}
+	fieldsInOrder := [...]string{"quantity", "itemId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5163,23 +5804,23 @@ func (ec *executionContext) unmarshalInputNewOrderItem(ctx context.Context, obj 
 				return it, err
 			}
 			it.Quantity = data
-		case "item":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
+		case "itemId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemId"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Item = data
+			it.ItemID = data
 		}
 	}
 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputUpdateCustomItem(ctx context.Context, obj interface{}) (model.UpdateCustomItem, error) {
-	var it model.UpdateCustomItem
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+func (ec *executionContext) unmarshalInputUpdateCustomItem(ctx context.Context, obj any) (UpdateCustomItem, error) {
+	var it UpdateCustomItem
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
@@ -5210,10 +5851,10 @@ func (ec *executionContext) unmarshalInputUpdateCustomItem(ctx context.Context, 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj interface{}) (model.UpdateItem, error) {
-	var it model.UpdateItem
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
+func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj any) (UpdateItem, error) {
+	var it UpdateItem
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
@@ -5282,7 +5923,7 @@ func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj in
 
 var customItemImplementors = []string{"CustomItem"}
 
-func (ec *executionContext) _CustomItem(ctx context.Context, sel ast.SelectionSet, obj *model.CustomItem) graphql.Marshaler {
+func (ec *executionContext) _CustomItem(ctx context.Context, sel ast.SelectionSet, obj *CustomItem) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, customItemImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5338,7 +5979,7 @@ func (ec *executionContext) _CustomItem(ctx context.Context, sel ast.SelectionSe
 
 var itemImplementors = []string{"Item"}
 
-func (ec *executionContext) _Item(ctx context.Context, sel ast.SelectionSet, obj *model.Item) graphql.Marshaler {
+func (ec *executionContext) _Item(ctx context.Context, sel ast.SelectionSet, obj *Item) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, itemImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5377,8 +6018,8 @@ func (ec *executionContext) _Item(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "isOneOff":
-			out.Values[i] = ec._Item_isOneOff(ctx, field, obj)
+		case "isVariant":
+			out.Values[i] = ec._Item_isVariant(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -5495,7 +6136,7 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 
 var orderImplementors = []string{"Order"}
 
-func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, obj *model.Order) graphql.Marshaler {
+func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, obj *Order) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, orderImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5564,7 +6205,7 @@ func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, ob
 
 var orderCustomItemImplementors = []string{"OrderCustomItem"}
 
-func (ec *executionContext) _OrderCustomItem(ctx context.Context, sel ast.SelectionSet, obj *model.OrderCustomItem) graphql.Marshaler {
+func (ec *executionContext) _OrderCustomItem(ctx context.Context, sel ast.SelectionSet, obj *OrderCustomItem) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, orderCustomItemImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5608,7 +6249,7 @@ func (ec *executionContext) _OrderCustomItem(ctx context.Context, sel ast.Select
 
 var orderItemImplementors = []string{"OrderItem"}
 
-func (ec *executionContext) _OrderItem(ctx context.Context, sel ast.SelectionSet, obj *model.OrderItem) graphql.Marshaler {
+func (ec *executionContext) _OrderItem(ctx context.Context, sel ast.SelectionSet, obj *OrderItem) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, orderItemImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5787,7 +6428,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 
 var statisticsImplementors = []string{"Statistics"}
 
-func (ec *executionContext) _Statistics(ctx context.Context, sel ast.SelectionSet, obj *model.Statistics) graphql.Marshaler {
+func (ec *executionContext) _Statistics(ctx context.Context, sel ast.SelectionSet, obj *Statistics) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, statisticsImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5878,6 +6519,11 @@ func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionS
 			}
 		case "description":
 			out.Values[i] = ec.___Directive_description(ctx, field, obj)
+		case "isRepeatable":
+			out.Values[i] = ec.___Directive_isRepeatable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "locations":
 			out.Values[i] = ec.___Directive_locations(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -5885,11 +6531,6 @@ func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionS
 			}
 		case "args":
 			out.Values[i] = ec.___Directive_args(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "isRepeatable":
-			out.Values[i] = ec.___Directive_isRepeatable(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6047,6 +6688,13 @@ func (ec *executionContext) ___InputValue(ctx context.Context, sel ast.Selection
 			}
 		case "defaultValue":
 			out.Values[i] = ec.___InputValue_defaultValue(ctx, field, obj)
+		case "isDeprecated":
+			out.Values[i] = ec.___InputValue_isDeprecated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deprecationReason":
+			out.Values[i] = ec.___InputValue_deprecationReason(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6145,6 +6793,8 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec.___Type_name(ctx, field, obj)
 		case "description":
 			out.Values[i] = ec.___Type_description(ctx, field, obj)
+		case "specifiedByURL":
+			out.Values[i] = ec.___Type_specifiedByURL(ctx, field, obj)
 		case "fields":
 			out.Values[i] = ec.___Type_fields(ctx, field, obj)
 		case "interfaces":
@@ -6157,8 +6807,8 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec.___Type_inputFields(ctx, field, obj)
 		case "ofType":
 			out.Values[i] = ec.___Type_ofType(ctx, field, obj)
-		case "specifiedByURL":
-			out.Values[i] = ec.___Type_specifiedByURL(ctx, field, obj)
+		case "isOneOf":
+			out.Values[i] = ec.___Type_isOneOf(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6186,12 +6836,13 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
+func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.SelectionSet, v bool) graphql.Marshaler {
+	_ = sel
 	res := graphql.MarshalBoolean(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -6201,11 +6852,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx context.Context, sel ast.SelectionSet, v model.CustomItem) graphql.Marshaler {
+func (ec *executionContext) marshalNCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐCustomItem(ctx context.Context, sel ast.SelectionSet, v CustomItem) graphql.Marshaler {
 	return ec._CustomItem(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CustomItem) graphql.Marshaler {
+func (ec *executionContext) marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐCustomItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*CustomItem) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -6229,7 +6880,7 @@ func (ec *executionContext) marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter4
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx, sel, v[i])
+			ret[i] = ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐCustomItem(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6249,7 +6900,7 @@ func (ec *executionContext) marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter4
 	return ret
 }
 
-func (ec *executionContext) marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItem(ctx context.Context, sel ast.SelectionSet, v *model.CustomItem) graphql.Marshaler {
+func (ec *executionContext) marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐCustomItem(ctx context.Context, sel ast.SelectionSet, v *CustomItem) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6259,34 +6910,13 @@ func (ec *executionContext) marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404�
 	return ec._CustomItem(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNCustomItemInput2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemInputᚄ(ctx context.Context, v interface{}) ([]*model.CustomItemInput, error) {
-	var vSlice []interface{}
-	if v != nil {
-		vSlice = graphql.CoerceList(v)
-	}
-	var err error
-	res := make([]*model.CustomItemInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNCustomItemInput2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalNCustomItemInput2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐCustomItemInput(ctx context.Context, v interface{}) (*model.CustomItemInput, error) {
-	res, err := ec.unmarshalInputCustomItemInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
 	res, err := graphql.UnmarshalFloatContext(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	_ = sel
 	res := graphql.MarshalFloatContext(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -6296,12 +6926,13 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
-func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
+func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	_ = sel
 	res := graphql.MarshalInt(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -6311,11 +6942,9 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) unmarshalNInt2ᚕintᚄ(ctx context.Context, v interface{}) ([]int, error) {
-	var vSlice []interface{}
-	if v != nil {
-		vSlice = graphql.CoerceList(v)
-	}
+func (ec *executionContext) unmarshalNInt2ᚕintᚄ(ctx context.Context, v any) ([]int, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]int, len(vSlice))
 	for i := range vSlice {
@@ -6343,12 +6972,13 @@ func (ec *executionContext) marshalNInt2ᚕintᚄ(ctx context.Context, sel ast.S
 	return ret
 }
 
-func (ec *executionContext) unmarshalNInt642int64(ctx context.Context, v interface{}) (int64, error) {
+func (ec *executionContext) unmarshalNInt642int64(ctx context.Context, v any) (int64, error) {
 	res, err := graphql.UnmarshalInt64(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNInt642int64(ctx context.Context, sel ast.SelectionSet, v int64) graphql.Marshaler {
+	_ = sel
 	res := graphql.MarshalInt64(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -6358,11 +6988,11 @@ func (ec *executionContext) marshalNInt642int64(ctx context.Context, sel ast.Sel
 	return res
 }
 
-func (ec *executionContext) marshalNItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItem(ctx context.Context, sel ast.SelectionSet, v model.Item) graphql.Marshaler {
+func (ec *executionContext) marshalNItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItem(ctx context.Context, sel ast.SelectionSet, v Item) graphql.Marshaler {
 	return ec._Item(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Item) graphql.Marshaler {
+func (ec *executionContext) marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*Item) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -6386,7 +7016,7 @@ func (ec *executionContext) marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋb
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItem(ctx, sel, v[i])
+			ret[i] = ec.marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItem(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6406,7 +7036,7 @@ func (ec *executionContext) marshalNItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋb
 	return ret
 }
 
-func (ec *executionContext) marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItem(ctx context.Context, sel ast.SelectionSet, v *model.Item) graphql.Marshaler {
+func (ec *executionContext) marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐItem(ctx context.Context, sel ast.SelectionSet, v *Item) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6416,16 +7046,14 @@ func (ec *executionContext) marshalNItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubb
 	return ec._Item(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNItemInput2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemInputᚄ(ctx context.Context, v interface{}) ([]*model.ItemInput, error) {
-	var vSlice []interface{}
-	if v != nil {
-		vSlice = graphql.CoerceList(v)
-	}
+func (ec *executionContext) unmarshalNNewCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewCustomItemᚄ(ctx context.Context, v any) ([]*NewCustomItem, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
 	var err error
-	res := make([]*model.ItemInput, len(vSlice))
+	res := make([]*NewCustomItem, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNItemInput2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNNewCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewCustomItem(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -6433,48 +7061,19 @@ func (ec *executionContext) unmarshalNItemInput2ᚕᚖgithubᚗcomᚋcodecrafter
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNItemInput2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐItemInput(ctx context.Context, v interface{}) (*model.ItemInput, error) {
-	res, err := ec.unmarshalInputItemInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNNewCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewCustomItemᚄ(ctx context.Context, v interface{}) ([]*model.NewCustomItem, error) {
-	var vSlice []interface{}
-	if v != nil {
-		vSlice = graphql.CoerceList(v)
-	}
-	var err error
-	res := make([]*model.NewCustomItem, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNNewCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewCustomItem(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalNNewCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewCustomItem(ctx context.Context, v interface{}) (*model.NewCustomItem, error) {
+func (ec *executionContext) unmarshalNNewCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewCustomItem(ctx context.Context, v any) (*NewCustomItem, error) {
 	res, err := ec.unmarshalInputNewCustomItem(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNNewOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrder(ctx context.Context, v interface{}) (model.NewOrder, error) {
-	res, err := ec.unmarshalInputNewOrder(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNNewOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItemᚄ(ctx context.Context, v interface{}) ([]*model.NewOrderItem, error) {
-	var vSlice []interface{}
-	if v != nil {
-		vSlice = graphql.CoerceList(v)
-	}
+func (ec *executionContext) unmarshalNNewItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewItemᚄ(ctx context.Context, v any) ([]*NewItem, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
 	var err error
-	res := make([]*model.NewOrderItem, len(vSlice))
+	res := make([]*NewItem, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNNewOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItem(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNNewItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewItem(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -6482,16 +7081,61 @@ func (ec *executionContext) unmarshalNNewOrderItem2ᚕᚖgithubᚗcomᚋcodecraf
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNNewOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐNewOrderItem(ctx context.Context, v interface{}) (*model.NewOrderItem, error) {
+func (ec *executionContext) unmarshalNNewItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewItem(ctx context.Context, v any) (*NewItem, error) {
+	res, err := ec.unmarshalInputNewItem(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNNewOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrder(ctx context.Context, v any) (NewOrder, error) {
+	res, err := ec.unmarshalInputNewOrder(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNNewOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderCustomItemᚄ(ctx context.Context, v any) ([]*NewOrderCustomItem, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*NewOrderCustomItem, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNNewOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderCustomItem(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNNewOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderCustomItem(ctx context.Context, v any) (*NewOrderCustomItem, error) {
+	res, err := ec.unmarshalInputNewOrderCustomItem(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNNewOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderItemᚄ(ctx context.Context, v any) ([]*NewOrderItem, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*NewOrderItem, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNNewOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderItem(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNNewOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐNewOrderItem(ctx context.Context, v any) (*NewOrderItem, error) {
 	res, err := ec.unmarshalInputNewOrderItem(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx context.Context, sel ast.SelectionSet, v Order) graphql.Marshaler {
 	return ec._Order(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*Order) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -6515,7 +7159,7 @@ func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋ
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx, sel, v[i])
+			ret[i] = ec.marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6535,7 +7179,7 @@ func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx context.Context, sel ast.SelectionSet, v *Order) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6545,7 +7189,7 @@ func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbub
 	return ec._Order(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderCustomItem) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderCustomItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*OrderCustomItem) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -6569,7 +7213,7 @@ func (ec *executionContext) marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecra
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItem(ctx, sel, v[i])
+			ret[i] = ec.marshalNOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderCustomItem(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6589,7 +7233,7 @@ func (ec *executionContext) marshalNOrderCustomItem2ᚕᚖgithubᚗcomᚋcodecra
 	return ret
 }
 
-func (ec *executionContext) marshalNOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderCustomItem(ctx context.Context, sel ast.SelectionSet, v *model.OrderCustomItem) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderCustomItem(ctx context.Context, sel ast.SelectionSet, v *OrderCustomItem) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6599,7 +7243,7 @@ func (ec *executionContext) marshalNOrderCustomItem2ᚖgithubᚗcomᚋcodecrafte
 	return ec._OrderCustomItem(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderItem) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*OrderItem) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -6623,7 +7267,7 @@ func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter40
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItem(ctx, sel, v[i])
+			ret[i] = ec.marshalNOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderItem(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6643,7 +7287,7 @@ func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋcodecrafter40
 	return ret
 }
 
-func (ec *executionContext) marshalNOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderItem(ctx context.Context, sel ast.SelectionSet, v *model.OrderItem) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderItem(ctx context.Context, sel ast.SelectionSet, v *OrderItem) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6653,21 +7297,21 @@ func (ec *executionContext) marshalNOrderItem2ᚖgithubᚗcomᚋcodecrafter404�
 	return ec._OrderItem(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx context.Context, v interface{}) (model.OrderState, error) {
-	var res model.OrderState
+func (ec *executionContext) unmarshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx context.Context, v any) (OrderState, error) {
+	var res OrderState
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx context.Context, sel ast.SelectionSet, v model.OrderState) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderState2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx context.Context, sel ast.SelectionSet, v OrderState) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNStatistics2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐStatistics(ctx context.Context, sel ast.SelectionSet, v model.Statistics) graphql.Marshaler {
+func (ec *executionContext) marshalNStatistics2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐStatistics(ctx context.Context, sel ast.SelectionSet, v Statistics) graphql.Marshaler {
 	return ec._Statistics(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNStatistics2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐStatistics(ctx context.Context, sel ast.SelectionSet, v *model.Statistics) graphql.Marshaler {
+func (ec *executionContext) marshalNStatistics2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐStatistics(ctx context.Context, sel ast.SelectionSet, v *Statistics) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6677,12 +7321,13 @@ func (ec *executionContext) marshalNStatistics2ᚖgithubᚗcomᚋcodecrafter404�
 	return ec._Statistics(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
+func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
 	res := graphql.MarshalString(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -6692,23 +7337,23 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) unmarshalNUpdateCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateCustomItem(ctx context.Context, v interface{}) (model.UpdateCustomItem, error) {
+func (ec *executionContext) unmarshalNUpdateCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUpdateCustomItem(ctx context.Context, v any) (UpdateCustomItem, error) {
 	res, err := ec.unmarshalInputUpdateCustomItem(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateItem(ctx context.Context, v interface{}) (model.UpdateItem, error) {
+func (ec *executionContext) unmarshalNUpdateItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUpdateItem(ctx context.Context, v any) (UpdateItem, error) {
 	res, err := ec.unmarshalInputUpdateItem(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUser2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUser(ctx context.Context, v interface{}) (model.User, error) {
-	var res model.User
+func (ec *executionContext) unmarshalNUser2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUser(ctx context.Context, v any) (User, error) {
+	var res User
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUser2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
+func (ec *executionContext) marshalNUser2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUser(ctx context.Context, sel ast.SelectionSet, v User) graphql.Marshaler {
 	return v
 }
 
@@ -6760,12 +7405,13 @@ func (ec *executionContext) marshalN__Directive2ᚕgithubᚗcomᚋ99designsᚋgq
 	return ret
 }
 
-func (ec *executionContext) unmarshalN__DirectiveLocation2string(ctx context.Context, v interface{}) (string, error) {
+func (ec *executionContext) unmarshalN__DirectiveLocation2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalN__DirectiveLocation2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
 	res := graphql.MarshalString(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -6775,11 +7421,9 @@ func (ec *executionContext) marshalN__DirectiveLocation2string(ctx context.Conte
 	return res
 }
 
-func (ec *executionContext) unmarshalN__DirectiveLocation2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
-	var vSlice []interface{}
-	if v != nil {
-		vSlice = graphql.CoerceList(v)
-	}
+func (ec *executionContext) unmarshalN__DirectiveLocation2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
@@ -6950,12 +7594,13 @@ func (ec *executionContext) marshalN__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgen�
 	return ec.___Type(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalN__TypeKind2string(ctx context.Context, v interface{}) (string, error) {
+func (ec *executionContext) unmarshalN__TypeKind2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
 	res := graphql.MarshalString(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -6965,17 +7610,19 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
-func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
+func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOBoolean2bool(ctx context.Context, sel ast.SelectionSet, v bool) graphql.Marshaler {
+	_ = sel
+	_ = ctx
 	res := graphql.MarshalBoolean(v)
 	return res
 }
 
-func (ec *executionContext) unmarshalOBoolean2ᚖbool(ctx context.Context, v interface{}) (*bool, error) {
+func (ec *executionContext) unmarshalOBoolean2ᚖbool(ctx context.Context, v any) (*bool, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -6987,11 +7634,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	if v == nil {
 		return graphql.Null
 	}
+	_ = sel
+	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
 }
 
-func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v interface{}) (*float64, error) {
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -7003,11 +7652,12 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	if v == nil {
 		return graphql.Null
 	}
+	_ = sel
 	res := graphql.MarshalFloatContext(*v)
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
-func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -7019,34 +7669,36 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	if v == nil {
 		return graphql.Null
 	}
+	_ = sel
+	_ = ctx
 	res := graphql.MarshalInt(*v)
 	return res
 }
 
-func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrder(ctx context.Context, sel ast.SelectionSet, v *Order) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Order(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOOrderState2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx context.Context, v interface{}) (*model.OrderState, error) {
+func (ec *executionContext) unmarshalOOrderState2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx context.Context, v any) (*OrderState, error) {
 	if v == nil {
 		return nil, nil
 	}
-	var res = new(model.OrderState)
+	var res = new(OrderState)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOOrderState2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐOrderState(ctx context.Context, sel ast.SelectionSet, v *model.OrderState) graphql.Marshaler {
+func (ec *executionContext) marshalOOrderState2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx context.Context, sel ast.SelectionSet, v *OrderState) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
+func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -7058,20 +7710,22 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	if v == nil {
 		return graphql.Null
 	}
+	_ = sel
+	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
 }
 
-func (ec *executionContext) unmarshalOUpdateEvent2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateEvent(ctx context.Context, v interface{}) (*model.UpdateEvent, error) {
+func (ec *executionContext) unmarshalOUpdateEvent2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUpdateEvent(ctx context.Context, v any) (*UpdateEvent, error) {
 	if v == nil {
 		return nil, nil
 	}
-	var res = new(model.UpdateEvent)
+	var res = new(UpdateEvent)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOUpdateEvent2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚋmodelᚐUpdateEvent(ctx context.Context, sel ast.SelectionSet, v *model.UpdateEvent) graphql.Marshaler {
+func (ec *executionContext) marshalOUpdateEvent2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐUpdateEvent(ctx context.Context, sel ast.SelectionSet, v *UpdateEvent) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

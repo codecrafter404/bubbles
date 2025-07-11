@@ -1,0 +1,50 @@
+type OrderItem {
+  quantity: Int!
+  item: Item!
+}
+
+input NewOrderItem {
+  quantity: Int!
+  itemId: Int!
+}
+
+
+type OrderCustomItem {
+  quantity: Int!
+  customItem: CustomItem!
+}
+
+input NewOrderCustomItem {
+  customItemId: Int!
+  quantity: Int!
+  variants: [Int!]!
+}
+
+enum OrderState {
+  CREATED
+  PENDING
+  COMPLEATED
+  CANCELED
+}
+
+type Order {
+  id: Int! 
+  "UNIX Timestamp"
+  timestamp: Int64!
+  "A string generated sequencially to identifiy an OPEN order"
+  identifier: String!
+
+  state: OrderState!
+  total: Float!
+
+  items: [OrderItem!]!
+  customItems: [OrderCustomItem!]!
+}
+
+input NewOrder {
+  items: [NewOrderItem!]!
+  customItems: [NewOrderCustomItem!]!
+  "the total amount of money earned"
+  total: Float!
+}
+
