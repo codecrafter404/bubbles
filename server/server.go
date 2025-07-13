@@ -39,6 +39,12 @@ func main() {
 		log.Fatalf("Failed to open database: %+v\n", err)
 	}
 
+	// migrate db
+
+	db.AutoMigrate(&graph.Order{})
+	db.AutoMigrate(&graph.OrderCustomItem{})
+	db.AutoMigrate(&graph.OrderItem{})
+
 	router := chi.NewRouter()
 
 	// Add CORS middleware around every request

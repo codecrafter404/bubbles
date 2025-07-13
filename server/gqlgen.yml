@@ -26,6 +26,11 @@ resolver:
   # Optional: turn on to not generate template comments above resolvers
   # omit_template_comment: false
 
+directives:
+  gorm:
+    skip_runtime: true
+  primary:
+    skip_runtime: true
 # Optional: turn on use ` + "`" + `gqlgen:"fieldName"` + "`" + ` tags in your models
 # struct_tag: json
 

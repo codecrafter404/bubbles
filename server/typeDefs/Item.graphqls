@@ -1,6 +1,6 @@
 type Item {
   "should be unique across items/customitems"
-  id: Int!
+  id: Int! @primary
   "eg.: cheesecake"
   name: String!
   price: Float!

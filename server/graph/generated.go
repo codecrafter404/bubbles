@@ -644,7 +644,7 @@ input UpdateCustomItem {
 `, BuiltIn: false},
 	{Name: "../typeDefs/Item.graphqls", Input: `type Item {
   "should be unique across items/customitems"
-  id: Int!
+  id: Int! @primary
   "eg.: cheesecake"
   name: String!
   price: Float!
@@ -679,7 +679,7 @@ input NewItem {
 `, BuiltIn: false},
 	{Name: "../typeDefs/Order.graphqls", Input: `type OrderItem {
   quantity: Int!
-  item: Item!
+  item: Item! @gorm(tags: "embedded") # in order to not lose historical price / variation data
 }
 
 input NewOrderItem {
@@ -690,7 +690,7 @@ input NewOrderItem {
 
 type OrderCustomItem {
   quantity: Int!
-  customItem: CustomItem!
+  customItem: CustomItem! @gorm(tags: "embedded")
 }
 
 input NewOrderCustomItem {
@@ -713,11 +713,11 @@ type Order {
   "A string generated sequencially to identifiy an OPEN order"
   identifier: String!
 
-  state: OrderState!
+  state: OrderState! @gorm(tags: "embedded")
   total: Float!
 
-  items: [OrderItem!]!
-  customItems: [OrderCustomItem!]!
+  items: [OrderItem!]! @gorm(tags: "foreignKey:Items;references:ID")
+  customItems: [OrderCustomItem!]! @gorm(tags: "foreignKey:Items;references:ID")
 }
 
 input NewOrder {
@@ -728,7 +728,14 @@ input NewOrder {
 }
 
 `, BuiltIn: false},
-	{Name: "../typeDefs/schema.graphqls", Input: `scalar Int64
+	{Name: "../typeDefs/schema.graphqls", Input: `directive @gorm(
+	tags: String
+) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+
+directive @primary on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+
+
+scalar Int64
 
 enum User {
   ADMIN

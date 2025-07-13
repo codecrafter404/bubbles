@@ -1,3 +1,4 @@
+//go:generate go run generate.go
 package resolvers
 
 // THIS CODE WILL BE UPDATED WITH SCHEMA CHANGES. PREVIOUS IMPLEMENTATION FOR SCHEMA CHANGES WILL BE KEPT IN THE COMMENT SECTION. IMPLEMENTATION FOR UNCHANGED SCHEMA WILL BE KEPT.
@@ -112,5 +113,8 @@ type subscriptionResolver struct{ *Resolver }
 //    it when you're done.
 //  - You have helper methods in this file. Move them out to keep these resolver files clean.
 /*
-	type Resolver struct{}
+	type Resolver struct {
+	EventChannel []chan *graph.UpdateEvent
+	Db           *gorm.DB
+}
 */

@@ -22,7 +22,7 @@ type CustomItem struct {
 
 type Item struct {
 	// should be unique across items/customitems
-	ID int `json:"id"`
+	ID int `json:"id" gorm:"primary"`
 	// eg.: cheesecake
 	Name  string  `json:"name"`
 	Price float64 `json:"price"`
@@ -81,20 +81,20 @@ type Order struct {
 	Timestamp int64 `json:"timestamp"`
 	// A string generated sequencially to identifiy an OPEN order
 	Identifier  string             `json:"identifier"`
-	State       OrderState         `json:"state"`
+	State       OrderState         `json:"state" gorm:"embedded"`
 	Total       float64            `json:"total"`
-	Items       []*OrderItem       `json:"items"`
-	CustomItems []*OrderCustomItem `json:"customItems"`
+	Items       []*OrderItem       `json:"items" gorm:"foreignKey:Items;references:ID"`
+	CustomItems []*OrderCustomItem `json:"customItems" gorm:"foreignKey:Items;references:ID"`
 }
 
 type OrderCustomItem struct {
 	Quantity   int         `json:"quantity"`
-	CustomItem *CustomItem `json:"customItem"`
+	CustomItem *CustomItem `json:"customItem" gorm:"embedded"`
 }
 
 type OrderItem struct {
 	Quantity int   `json:"quantity"`
-	Item     *Item `json:"item"`
+	Item     *Item `json:"item" gorm:"embedded"`
 }
 
 type Query struct {
