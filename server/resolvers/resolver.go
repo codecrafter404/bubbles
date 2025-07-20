@@ -20,7 +20,7 @@ type Resolver struct {
 
 // CreateOrder is the resolver for the createOrder field.
 func (r *mutationResolver) CreateOrder(ctx context.Context, order graph.NewOrder) (*graph.Order, error) {
-	return mutation.CreateOrder(ctx, order)
+	return mutation.CreateOrder(ctx, order, r)
 }
 
 // UpdateOrder is the resolver for the updateOrder field.

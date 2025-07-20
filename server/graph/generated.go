@@ -86,12 +86,18 @@ type ComplexityRoot struct {
 	}
 
 	OrderCustomItem struct {
-		CustomItem func(childComplexity int) int
-		Quantity   func(childComplexity int) int
+		CustomItem   func(childComplexity int) int
+		CustomItemID func(childComplexity int) int
+		ID           func(childComplexity int) int
+		OrderID      func(childComplexity int) int
+		Quantity     func(childComplexity int) int
 	}
 
 	OrderItem struct {
+		ID       func(childComplexity int) int
 		Item     func(childComplexity int) int
+		ItemID   func(childComplexity int) int
+		OrderID  func(childComplexity int) int
 		Quantity func(childComplexity int) int
 	}
 
@@ -381,6 +387,27 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.OrderCustomItem.CustomItem(childComplexity), true
 
+	case "OrderCustomItem.customItemId":
+		if e.complexity.OrderCustomItem.CustomItemID == nil {
+			break
+		}
+
+		return e.complexity.OrderCustomItem.CustomItemID(childComplexity), true
+
+	case "OrderCustomItem.id":
+		if e.complexity.OrderCustomItem.ID == nil {
+			break
+		}
+
+		return e.complexity.OrderCustomItem.ID(childComplexity), true
+
+	case "OrderCustomItem.orderId":
+		if e.complexity.OrderCustomItem.OrderID == nil {
+			break
+		}
+
+		return e.complexity.OrderCustomItem.OrderID(childComplexity), true
+
 	case "OrderCustomItem.quantity":
 		if e.complexity.OrderCustomItem.Quantity == nil {
 			break
@@ -388,12 +415,33 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.OrderCustomItem.Quantity(childComplexity), true
 
+	case "OrderItem.id":
+		if e.complexity.OrderItem.ID == nil {
+			break
+		}
+
+		return e.complexity.OrderItem.ID(childComplexity), true
+
 	case "OrderItem.item":
 		if e.complexity.OrderItem.Item == nil {
 			break
 		}
 
 		return e.complexity.OrderItem.Item(childComplexity), true
+
+	case "OrderItem.itemId":
+		if e.complexity.OrderItem.ItemID == nil {
+			break
+		}
+
+		return e.complexity.OrderItem.ItemID(childComplexity), true
+
+	case "OrderItem.orderId":
+		if e.complexity.OrderItem.OrderID == nil {
+			break
+		}
+
+		return e.complexity.OrderItem.OrderID(childComplexity), true
 
 	case "OrderItem.quantity":
 		if e.complexity.OrderItem.Quantity == nil {
@@ -620,11 +668,11 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 var sources = []*ast.Source{
 	{Name: "../typeDefs/CustomItem.graphqls", Input: `type CustomItem {
   "should be unique across items/customitems"
-  id: Int!
+  id: Int! @primary
   name: String!
   "the dependency of the item for building a tree (only custom items)"
   dependsOn: Int
-  variants: [Item!]!
+  variants: [Item!]! @gorm(tags: "many2many:customItem_items")
   "wheather multiple variants can be selected at once"
   exclusive: Boolean!
 }
@@ -678,8 +726,11 @@ input NewItem {
 }
 `, BuiltIn: false},
 	{Name: "../typeDefs/Order.graphqls", Input: `type OrderItem {
+  id: Int! @primary
+  orderId: Int!
   quantity: Int!
-  item: Item! @gorm(tags: "embedded") # in order to not lose historical price / variation data
+  itemId: Int!
+  item: Item!
 }
 
 input NewOrderItem {
@@ -689,8 +740,11 @@ input NewOrderItem {
 
 
 type OrderCustomItem {
+  id: Int! @primary
+  orderId: Int!
   quantity: Int!
-  customItem: CustomItem! @gorm(tags: "embedded")
+  customItemId: Int!
+  customItem: CustomItem!
 }
 
 input NewOrderCustomItem {
@@ -716,8 +770,8 @@ type Order {
   state: OrderState! @gorm(tags: "embedded")
   total: Float!
 
-  items: [OrderItem!]! @gorm(tags: "foreignKey:Items;references:ID")
-  customItems: [OrderCustomItem!]! @gorm(tags: "foreignKey:Items;references:ID")
+  items: [OrderItem!]! @gorm(tags: "foreignKey:OrderID;references:ID")
+  customItems: [OrderCustomItem!]! @gorm(tags: "foreignKey:OrderID;references:ID")
 }
 
 input NewOrder {
@@ -2600,8 +2654,14 @@ func (ec *executionContext) fieldContext_Order_items(_ context.Context, field gr
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "id":
+				return ec.fieldContext_OrderItem_id(ctx, field)
+			case "orderId":
+				return ec.fieldContext_OrderItem_orderId(ctx, field)
 			case "quantity":
 				return ec.fieldContext_OrderItem_quantity(ctx, field)
+			case "itemId":
+				return ec.fieldContext_OrderItem_itemId(ctx, field)
 			case "item":
 				return ec.fieldContext_OrderItem_item(ctx, field)
 			}
@@ -2650,12 +2710,106 @@ func (ec *executionContext) fieldContext_Order_customItems(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "id":
+				return ec.fieldContext_OrderCustomItem_id(ctx, field)
+			case "orderId":
+				return ec.fieldContext_OrderCustomItem_orderId(ctx, field)
 			case "quantity":
 				return ec.fieldContext_OrderCustomItem_quantity(ctx, field)
+			case "customItemId":
+				return ec.fieldContext_OrderCustomItem_customItemId(ctx, field)
 			case "customItem":
 				return ec.fieldContext_OrderCustomItem_customItem(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type OrderCustomItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderCustomItem_id(ctx context.Context, field graphql.CollectedField, obj *OrderCustomItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderCustomItem_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderCustomItem_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderCustomItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderCustomItem_orderId(ctx context.Context, field graphql.CollectedField, obj *OrderCustomItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderCustomItem_orderId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OrderID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderCustomItem_orderId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderCustomItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2693,6 +2847,50 @@ func (ec *executionContext) _OrderCustomItem_quantity(ctx context.Context, field
 }
 
 func (ec *executionContext) fieldContext_OrderCustomItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderCustomItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderCustomItem_customItemId(ctx context.Context, field graphql.CollectedField, obj *OrderCustomItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderCustomItem_customItemId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CustomItemID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderCustomItem_customItemId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "OrderCustomItem",
 		Field:      field,
@@ -2761,6 +2959,94 @@ func (ec *executionContext) fieldContext_OrderCustomItem_customItem(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _OrderItem_id(ctx context.Context, field graphql.CollectedField, obj *OrderItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderItem_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderItem_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderItem_orderId(ctx context.Context, field graphql.CollectedField, obj *OrderItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderItem_orderId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OrderID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderItem_orderId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graphql.CollectedField, obj *OrderItem) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OrderItem_quantity(ctx, field)
 	if err != nil {
@@ -2793,6 +3079,50 @@ func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graph
 }
 
 func (ec *executionContext) fieldContext_OrderItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderItem_itemId(ctx context.Context, field graphql.CollectedField, obj *OrderItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OrderItem_itemId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ItemID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OrderItem_itemId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "OrderItem",
 		Field:      field,
@@ -6221,8 +6551,23 @@ func (ec *executionContext) _OrderCustomItem(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("OrderCustomItem")
+		case "id":
+			out.Values[i] = ec._OrderCustomItem_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "orderId":
+			out.Values[i] = ec._OrderCustomItem_orderId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "quantity":
 			out.Values[i] = ec._OrderCustomItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "customItemId":
+			out.Values[i] = ec._OrderCustomItem_customItemId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6265,8 +6610,23 @@ func (ec *executionContext) _OrderItem(ctx context.Context, sel ast.SelectionSet
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("OrderItem")
+		case "id":
+			out.Values[i] = ec._OrderItem_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "orderId":
+			out.Values[i] = ec._OrderItem_orderId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "quantity":
 			out.Values[i] = ec._OrderItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "itemId":
+			out.Values[i] = ec._OrderItem_itemId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

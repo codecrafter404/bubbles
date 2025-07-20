@@ -2,8 +2,10 @@ package query
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/codecrafter404/bubble/graph"
+	"gorm.io/gorm"
 )
 
 // GetPermission is the resolver for the getPermission field.
@@ -17,11 +19,17 @@ func GetOrder(ctx context.Context, id int) (*graph.Order, error) {
 }
 
 // GetItems is the resolver for the getItems field.
-func GetItems(ctx context.Context) ([]*graph.Item, error) {
-	panic("not implemented")
+func GetItems(db *gorm.DB) ([]*graph.Item, error) {
+	var items []*graph.Item
+	if err := db.Find(&items); err != nil {
+		return []*graph.Item{}, fmt.Errorf("Failed to fetch items: %+v", err)
+	}
+	return items, nil
 }
 
 // GetCustomItems is the resolver for the getCustomItems field.
-func GetCustomItems(ctx context.Context) ([]*graph.CustomItem, error) {
-	panic("not implemented")
+func GetCustomItems(db *gorm.DB) ([]*graph.CustomItem, error) {
+	var customitems []*graph.CustomItem
+
+	db.Model(&customitems).Association("Items").Find(&customitems)
 }

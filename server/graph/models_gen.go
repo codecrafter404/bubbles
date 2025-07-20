@@ -11,11 +11,11 @@ import (
 
 type CustomItem struct {
 	// should be unique across items/customitems
-	ID   int    `json:"id"`
+	ID   int    `json:"id" gorm:"primary"`
 	Name string `json:"name"`
 	// the dependency of the item for building a tree (only custom items)
 	DependsOn *int    `json:"dependsOn,omitempty"`
-	Variants  []*Item `json:"variants"`
+	Variants  []*Item `json:"variants" gorm:"many2many:customItem_items"`
 	// wheather multiple variants can be selected at once
 	Exclusive bool `json:"exclusive"`
 }
@@ -83,18 +83,24 @@ type Order struct {
 	Identifier  string             `json:"identifier"`
 	State       OrderState         `json:"state" gorm:"embedded"`
 	Total       float64            `json:"total"`
-	Items       []*OrderItem       `json:"items" gorm:"foreignKey:Items;references:ID"`
-	CustomItems []*OrderCustomItem `json:"customItems" gorm:"foreignKey:Items;references:ID"`
+	Items       []*OrderItem       `json:"items" gorm:"foreignKey:OrderID;references:ID"`
+	CustomItems []*OrderCustomItem `json:"customItems" gorm:"foreignKey:OrderID;references:ID"`
 }
 
 type OrderCustomItem struct {
-	Quantity   int         `json:"quantity"`
-	CustomItem *CustomItem `json:"customItem" gorm:"embedded"`
+	ID           int         `json:"id" gorm:"primary"`
+	OrderID      int         `json:"orderId"`
+	Quantity     int         `json:"quantity"`
+	CustomItemID int         `json:"customItemId"`
+	CustomItem   *CustomItem `json:"customItem"`
 }
 
 type OrderItem struct {
+	ID       int   `json:"id" gorm:"primary"`
+	OrderID  int   `json:"orderId"`
 	Quantity int   `json:"quantity"`
-	Item     *Item `json:"item" gorm:"embedded"`
+	ItemID   int   `json:"itemId"`
+	Item     *Item `json:"item"`
 }
 
 type Query struct {

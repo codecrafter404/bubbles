@@ -1,6 +1,9 @@
 type OrderItem {
+  id: Int! @primary
+  orderId: Int!
   quantity: Int!
-  item: Item! @gorm(tags: "embedded") # in order to not lose historical price / variation data
+  itemId: Int!
+  item: Item!
 }
 
 input NewOrderItem {
@@ -10,8 +13,11 @@ input NewOrderItem {
 
 
 type OrderCustomItem {
+  id: Int! @primary
+  orderId: Int!
   quantity: Int!
-  customItem: CustomItem! @gorm(tags: "embedded")
+  customItemId: Int!
+  customItem: CustomItem!
 }
 
 input NewOrderCustomItem {
@@ -37,8 +43,8 @@ type Order {
   state: OrderState! @gorm(tags: "embedded")
   total: Float!
 
-  items: [OrderItem!]! @gorm(tags: "foreignKey:Items;references:ID")
-  customItems: [OrderCustomItem!]! @gorm(tags: "foreignKey:Items;references:ID")
+  items: [OrderItem!]! @gorm(tags: "foreignKey:OrderID;references:ID")
+  customItems: [OrderCustomItem!]! @gorm(tags: "foreignKey:OrderID;references:ID")
 }
 
 input NewOrder {

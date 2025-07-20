@@ -1,10 +1,10 @@
 type CustomItem {
   "should be unique across items/customitems"
-  id: Int!
+  id: Int! @primary
   name: String!
   "the dependency of the item for building a tree (only custom items)"
   dependsOn: Int
-  variants: [Item!]!
+  variants: [Item!]! @gorm(tags: "many2many:customItem_items")
   "wheather multiple variants can be selected at once"
   exclusive: Boolean!
 }
