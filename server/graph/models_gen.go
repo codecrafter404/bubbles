@@ -54,14 +54,13 @@ type NewItem struct {
 	Image      string  `json:"image"`
 	Available  bool    `json:"available"`
 	Identifier string  `json:"identifier"`
-	Isoneoff   bool    `json:"isoneoff"`
+	IsVariant  bool    `json:"isVariant"`
 }
 
 type NewOrder struct {
 	Items       []*NewOrderItem       `json:"items"`
 	CustomItems []*NewOrderCustomItem `json:"customItems"`
-	// the total amount of money earned
-	Total float64 `json:"total"`
+	State       *OrderState           `json:"state,omitempty"`
 }
 
 type NewOrderCustomItem struct {
@@ -126,7 +125,7 @@ type UpdateItem struct {
 	Image      *string  `json:"image,omitempty"`
 	Available  *bool    `json:"available,omitempty"`
 	Identifier *string  `json:"identifier,omitempty"`
-	IsOneOff   *bool    `json:"isOneOff,omitempty"`
+	IsVariant  *bool    `json:"isVariant,omitempty"`
 }
 
 type OrderState string
@@ -193,16 +192,18 @@ type UpdateEvent string
 const (
 	UpdateEventUpdateCustomitem UpdateEvent = "UPDATE_CUSTOMITEM"
 	UpdateEventUpdateItem       UpdateEvent = "UPDATE_ITEM"
+	UpdateEventCreateOrder      UpdateEvent = "CREATE_ORDER"
 )
 
 var AllUpdateEvent = []UpdateEvent{
 	UpdateEventUpdateCustomitem,
 	UpdateEventUpdateItem,
+	UpdateEventCreateOrder,
 }
 
 func (e UpdateEvent) IsValid() bool {
 	switch e {
-	case UpdateEventUpdateCustomitem, UpdateEventUpdateItem:
+	case UpdateEventUpdateCustomitem, UpdateEventUpdateItem, UpdateEventCreateOrder:
 		return true
 	}
 	return false

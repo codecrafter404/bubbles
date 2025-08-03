@@ -44,6 +44,7 @@ type Mutation {
 enum UpdateEvent {
   UPDATE_CUSTOMITEM
   UPDATE_ITEM
+  CREATE_ORDER
 }
 
 type Subscription {

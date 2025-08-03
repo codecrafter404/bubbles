@@ -20,7 +20,7 @@ input UpdateItem {
   image: String
   available: Boolean
   identifier: String
-  isOneOff: Boolean
+  isVariant: Boolean
 }
 
 input NewItem {
@@ -30,5 +30,5 @@ input NewItem {
   image: String!
   available: Boolean!
   identifier: String!
-  isoneoff: Boolean!
+  isVariant: Boolean!
 }

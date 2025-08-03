@@ -20,9 +20,10 @@ model:
 
 # Where should the resolver implementations go?
 resolver:
-  layout: single-file
+  layout: follow-schema
   package: resolvers
-  filename: resolvers/resolver.go
+  # filename: resolvers/resolver.go
+  dir: resolvers
   # Optional: turn on to not generate template comments above resolvers
   # omit_template_comment: false
 

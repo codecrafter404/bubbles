@@ -50,7 +50,6 @@ type Order {
 input NewOrder {
   items: [NewOrderItem!]!
   customItems: [NewOrderCustomItem!]!
-  "the total amount of money earned"
-  total: Float!
+  state: OrderState
 }
 

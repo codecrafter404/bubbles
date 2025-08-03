@@ -3,12 +3,13 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
+	"strconv"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/codecrafter404/bubble/config"
 	"github.com/codecrafter404/bubble/graph"
 	"github.com/codecrafter404/bubble/resolvers"
 
@@ -24,16 +25,18 @@ import (
 const defaultPort = "8080"
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
-	}
-	db_path := os.Getenv("DB_PATH")
-	if db_path == "" {
-		db_path = "bubbles.db"
+	config := config.Config{
+		OrderConfig: config.OrderConfig{
+			MaximalConcurrentOrders: 1000,
+			MaximalIdentifiers:      100,
+		},
+		ServerConfig: config.ServerConfig{
+			ServerPort: 8080,
+		},
+		DbPath: "bubbles.db",
 	}
 
-	db, err := gorm.Open(sqlite.Open(db_path))
+	db, err := gorm.Open(sqlite.Open(config.DbPath))
 
 	if err != nil {
 		log.Fatalf("Failed to open database: %+v\n", err)
@@ -42,8 +45,8 @@ func main() {
 	// migrate db
 
 	db.AutoMigrate(&graph.Order{})
-	db.AutoMigrate(&graph.OrderCustomItem{})
-	db.AutoMigrate(&graph.OrderItem{})
+	db.AutoMigrate(&graph.Item{})
+	db.AutoMigrate(&graph.CustomItem{})
 
 	router := chi.NewRouter()
 
@@ -54,7 +57,7 @@ func main() {
 		AllowCredentials: true,
 	}).Handler)
 
-	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &resolvers.Resolver{Db: db, EventChannel: []chan *graph.UpdateEvent{}}}))
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &resolvers.Resolver{Db: db, EventChannel: []chan *graph.UpdateEvent{}, OrderChannel: make(chan graph.Order, config.OrderConfig.MaximalConcurrentOrders), Config: config}}))
 
 	srv.AddTransport(transport.SSE{})
 	srv.AddTransport(transport.POST{})
@@ -73,6 +76,6 @@ func main() {
 	app_fs := http.FileServer(http.Dir("./app/"))
 	router.Handle("/*", app_fs)
 
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	log.Printf("connect to http://localhost:%d/ for GraphQL playground", config.ServerConfig.ServerPort)
+	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(config.ServerConfig.ServerPort), router))
 }

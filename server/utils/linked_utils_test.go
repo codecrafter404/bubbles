@@ -6,17 +6,17 @@ import (
 )
 
 func TestResolveDependencyNoLoop(t *testing.T) {
-	node := []GraphNode{
+	node := []LinkedNode{
 		{Id: 1, DependsOn: pointer(2)},
 		{Id: 3, DependsOn: nil},
 		{Id: 2, DependsOn: pointer(3)},
 	}
-	tree, successful := GraphNode{Id: 0, DependsOn: pointer(1)}.ResolveDependency(node, []GraphNode{})
+	tree, successful := LinkedNode{Id: 0, DependsOn: pointer(1)}.ResolveDependency(node, []LinkedNode{})
 	if !successful {
 		t.Error("Should be successful")
 	}
 
-	expected := []GraphNode{
+	expected := []LinkedNode{
 		{Id: 1, DependsOn: pointer(2)},
 		{Id: 2, DependsOn: pointer(3)},
 		{Id: 3, DependsOn: nil},
@@ -28,23 +28,23 @@ func TestResolveDependencyNoLoop(t *testing.T) {
 	}
 }
 func TestResolveDependencyLoop(t *testing.T) {
-	node := []GraphNode{
+	node := []LinkedNode{
 		{Id: 1, DependsOn: pointer(2)},
 		{Id: 3, DependsOn: pointer(0)},
 		{Id: 2, DependsOn: pointer(3)},
 	}
-	_, successful := GraphNode{Id: 0, DependsOn: pointer(1)}.ResolveDependency(node, []GraphNode{})
+	_, successful := LinkedNode{Id: 0, DependsOn: pointer(1)}.ResolveDependency(node, []LinkedNode{})
 	if successful {
 		t.Error("Shouldn't be successful")
 	}
 }
 func TestResolveDependencyMalformed(t *testing.T) {
-	node := []GraphNode{
+	node := []LinkedNode{
 		{Id: 1, DependsOn: pointer(2)},
 		{Id: 3, DependsOn: pointer(42)},
 		{Id: 2, DependsOn: pointer(3)},
 	}
-	_, successful := GraphNode{Id: 0, DependsOn: pointer(1)}.ResolveDependency(node, []GraphNode{})
+	_, successful := LinkedNode{Id: 0, DependsOn: pointer(1)}.ResolveDependency(node, []LinkedNode{})
 	if successful {
 		t.Error("Shouldn't be successful")
 	}

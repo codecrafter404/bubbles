@@ -712,7 +712,7 @@ input UpdateItem {
   image: String
   available: Boolean
   identifier: String
-  isOneOff: Boolean
+  isVariant: Boolean
 }
 
 input NewItem {
@@ -722,7 +722,7 @@ input NewItem {
   image: String!
   available: Boolean!
   identifier: String!
-  isoneoff: Boolean!
+  isVariant: Boolean!
 }
 `, BuiltIn: false},
 	{Name: "../typeDefs/Order.graphqls", Input: `type OrderItem {
@@ -777,8 +777,7 @@ type Order {
 input NewOrder {
   items: [NewOrderItem!]!
   customItems: [NewOrderCustomItem!]!
-  "the total amount of money earned"
-  total: Float!
+  state: OrderState
 }
 
 `, BuiltIn: false},
@@ -828,6 +827,7 @@ type Mutation {
 enum UpdateEvent {
   UPDATE_CUSTOMITEM
   UPDATE_ITEM
+  CREATE_ORDER
 }
 
 type Subscription {
@@ -5976,7 +5976,7 @@ func (ec *executionContext) unmarshalInputNewItem(ctx context.Context, obj any) 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "price", "image", "available", "identifier", "isoneoff"}
+	fieldsInOrder := [...]string{"id", "name", "price", "image", "available", "identifier", "isVariant"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6025,13 +6025,13 @@ func (ec *executionContext) unmarshalInputNewItem(ctx context.Context, obj any) 
 				return it, err
 			}
 			it.Identifier = data
-		case "isoneoff":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isoneoff"))
+		case "isVariant":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isVariant"))
 			data, err := ec.unmarshalNBoolean2bool(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Isoneoff = data
+			it.IsVariant = data
 		}
 	}
 
@@ -6045,7 +6045,7 @@ func (ec *executionContext) unmarshalInputNewOrder(ctx context.Context, obj any)
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"items", "customItems", "total"}
+	fieldsInOrder := [...]string{"items", "customItems", "state"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6066,13 +6066,13 @@ func (ec *executionContext) unmarshalInputNewOrder(ctx context.Context, obj any)
 				return it, err
 			}
 			it.CustomItems = data
-		case "total":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("total"))
-			data, err := ec.unmarshalNFloat2float64(ctx, v)
+		case "state":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
+			data, err := ec.unmarshalOOrderState2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgraphᚐOrderState(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Total = data
+			it.State = data
 		}
 	}
 
@@ -6195,7 +6195,7 @@ func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj an
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "price", "image", "available", "identifier", "isOneOff"}
+	fieldsInOrder := [...]string{"name", "price", "image", "available", "identifier", "isVariant"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6237,13 +6237,13 @@ func (ec *executionContext) unmarshalInputUpdateItem(ctx context.Context, obj an
 				return it, err
 			}
 			it.Identifier = data
-		case "isOneOff":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isOneOff"))
+		case "isVariant":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isVariant"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.IsOneOff = data
+			it.IsVariant = data
 		}
 	}
 
