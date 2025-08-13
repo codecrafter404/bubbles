@@ -13,7 +13,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
 		{Name: "exclusive", Type: field.TypeBool},
-		{Name: "next", Type: field.TypeInt},
+		{Name: "next", Type: field.TypeInt, Nullable: true},
 	}
 	// CustomItemsTable holds the schema information for the "custom_items" table.
 	CustomItemsTable = &schema.Table{

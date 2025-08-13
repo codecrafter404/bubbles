@@ -139,6 +139,9 @@ func (_u *CustomItemUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.Exclusive(); ok {
 		_spec.SetField(customitem.FieldExclusive, field.TypeBool, value)
 	}
+	if _u.mutation.NextCleared() {
+		_spec.ClearField(customitem.FieldNext, field.TypeInt)
+	}
 	if _u.mutation.VariantsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -344,6 +347,9 @@ func (_u *CustomItemUpdateOne) sqlSave(ctx context.Context) (_node *CustomItem, 
 	}
 	if value, ok := _u.mutation.Exclusive(); ok {
 		_spec.SetField(customitem.FieldExclusive, field.TypeBool, value)
+	}
+	if _u.mutation.NextCleared() {
+		_spec.ClearField(customitem.FieldNext, field.TypeInt)
 	}
 	if _u.mutation.VariantsCleared() {
 		edge := &sqlgraph.EdgeSpec{

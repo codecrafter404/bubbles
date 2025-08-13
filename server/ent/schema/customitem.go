@@ -18,14 +18,14 @@ func (CustomItem) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name"),
 		field.Bool("exclusive").Comment("if true then one or more variants can be selected at once"),
-		field.Int("next").Immutable().Comment("The id of the next to select custom item"),
+		field.Int("next").Immutable().Optional().Comment("The id of the next to select custom item"),
 	}
 }
 
 // Edges of the CustomItem.
 func (CustomItem) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("variants", Item.Type),
+		edge.To("variants", Item.Type).Required(),
 	}
 }
 func (CustomItem) Annotations() []schema.Annotation {

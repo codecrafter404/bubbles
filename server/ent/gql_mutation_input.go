@@ -2,26 +2,66 @@
 
 package ent
 
-// CreateCustomItemInput represents a mutation input for creating customitems.
-type CreateCustomItemInput struct {
-	Name       string
-	Exclusive  bool
-	Next       int
-	VariantIDs []int
+// CreateItemInput represents a mutation input for creating items.
+type CreateItemInput struct {
+	Name    string
+	Price   float64
+	Image   string
+	InStock bool
+	Notes   string
 }
 
-// Mutate applies the CreateCustomItemInput on the CustomItemMutation builder.
-func (i *CreateCustomItemInput) Mutate(m *CustomItemMutation) {
+// Mutate applies the CreateItemInput on the ItemMutation builder.
+func (i *CreateItemInput) Mutate(m *ItemMutation) {
 	m.SetName(i.Name)
-	m.SetExclusive(i.Exclusive)
-	m.SetNext(i.Next)
-	if v := i.VariantIDs; len(v) > 0 {
-		m.AddVariantIDs(v...)
+	m.SetPrice(i.Price)
+	m.SetImage(i.Image)
+	m.SetInStock(i.InStock)
+	m.SetNotes(i.Notes)
+}
+
+// SetInput applies the change-set in the CreateItemInput on the ItemCreate builder.
+func (c *ItemCreate) SetInput(i CreateItemInput) *ItemCreate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// UpdateItemInput represents a mutation input for updating items.
+type UpdateItemInput struct {
+	Name    *string
+	Price   *float64
+	Image   *string
+	InStock *bool
+	Notes   *string
+}
+
+// Mutate applies the UpdateItemInput on the ItemMutation builder.
+func (i *UpdateItemInput) Mutate(m *ItemMutation) {
+	if v := i.Name; v != nil {
+		m.SetName(*v)
+	}
+	if v := i.Price; v != nil {
+		m.SetPrice(*v)
+	}
+	if v := i.Image; v != nil {
+		m.SetImage(*v)
+	}
+	if v := i.InStock; v != nil {
+		m.SetInStock(*v)
+	}
+	if v := i.Notes; v != nil {
+		m.SetNotes(*v)
 	}
 }
 
-// SetInput applies the change-set in the CreateCustomItemInput on the CustomItemCreate builder.
-func (c *CustomItemCreate) SetInput(i CreateCustomItemInput) *CustomItemCreate {
+// SetInput applies the change-set in the UpdateItemInput on the ItemUpdate builder.
+func (c *ItemUpdate) SetInput(i UpdateItemInput) *ItemUpdate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// SetInput applies the change-set in the UpdateItemInput on the ItemUpdateOne builder.
+func (c *ItemUpdateOne) SetInput(i UpdateItemInput) *ItemUpdateOne {
 	i.Mutate(c.Mutation())
 	return c
 }

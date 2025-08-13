@@ -183,6 +183,16 @@ func NextLTE(v int) predicate.CustomItem {
 	return predicate.CustomItem(sql.FieldLTE(FieldNext, v))
 }
 
+// NextIsNil applies the IsNil predicate on the "next" field.
+func NextIsNil() predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldIsNull(FieldNext))
+}
+
+// NextNotNil applies the NotNil predicate on the "next" field.
+func NextNotNil() predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldNotNull(FieldNext))
+}
+
 // HasVariants applies the HasEdge predicate on the "variants" edge.
 func HasVariants() predicate.CustomItem {
 	return predicate.CustomItem(func(s *sql.Selector) {

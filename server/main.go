@@ -51,9 +51,6 @@ func main() {
 		Logger.Fatal().Err(err).Msg("Failed to run database migrations")
 	}
 
-	item := client.Item.Create().SetImage("").SetInStock(true).SetName("Test").SetPrice(1.5).SetNotes("").SaveX(Ctx)
-	Logger.Info().Any("item", item).Msg("Item created")
-
 	http.Handle("/",
 		playground.Handler("bubbles", "/query"),
 	)

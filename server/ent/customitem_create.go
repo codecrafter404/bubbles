@@ -38,6 +38,14 @@ func (_c *CustomItemCreate) SetNext(v int) *CustomItemCreate {
 	return _c
 }
 
+// SetNillableNext sets the "next" field if the given value is not nil.
+func (_c *CustomItemCreate) SetNillableNext(v *int) *CustomItemCreate {
+	if v != nil {
+		_c.SetNext(*v)
+	}
+	return _c
+}
+
 // AddVariantIDs adds the "variants" edge to the Item entity by IDs.
 func (_c *CustomItemCreate) AddVariantIDs(ids ...int) *CustomItemCreate {
 	_c.mutation.AddVariantIDs(ids...)
@@ -93,8 +101,8 @@ func (_c *CustomItemCreate) check() error {
 	if _, ok := _c.mutation.Exclusive(); !ok {
 		return &ValidationError{Name: "exclusive", err: errors.New(`ent: missing required field "CustomItem.exclusive"`)}
 	}
-	if _, ok := _c.mutation.Next(); !ok {
-		return &ValidationError{Name: "next", err: errors.New(`ent: missing required field "CustomItem.next"`)}
+	if len(_c.mutation.VariantsIDs()) == 0 {
+		return &ValidationError{Name: "variants", err: errors.New(`ent: missing required edge "CustomItem.variants"`)}
 	}
 	return nil
 }
