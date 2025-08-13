@@ -1,0 +1,39 @@
+package schema
+
+import (
+	"time"
+
+	"entgo.io/contrib/entgql"
+	"entgo.io/ent"
+	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
+	"entgo.io/ent/schema/field"
+)
+
+// Order holds the schema definition for the Order entity.
+type Order struct {
+	ent.Schema
+}
+
+// Fields of the Order.
+func (Order) Fields() []ent.Field {
+	return []ent.Field{
+		field.Time("submitted").Default(time.Now()).Comment("The time when the order has been submitted"),
+		field.String("identifier").Comment("A sequencially generated string to identifiy an open order"),
+		field.Enum("state").Values("created", "pending", "compleated", "cancelled").Default("created"),
+		field.Float("total").Comment("on client generated orders total"),
+	}
+}
+
+// Edges of the Order.
+func (Order) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.To("items", OrderItem.Type),
+		edge.To("custom_items", OrderCustomItem.Type),
+	}
+}
+func (Order) Annotations() []schema.Annotation {
+	return []schema.Annotation{
+		entgql.QueryField(),
+	}
+}

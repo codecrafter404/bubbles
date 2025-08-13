@@ -1,0 +1,153 @@
+directive @goField(forceResolver: Boolean, name: String, omittable: Boolean) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+directive @goModel(model: String, models: [String!], forceGenerate: Boolean) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
+"""
+Define a Relay Cursor type:
+https://relay.dev/graphql/connections.htm#sec-Cursor
+"""
+scalar Cursor
+type CustomItem implements Node {
+  id: ID!
+  name: String!
+  """
+  if true then one or more variants can be selected at once
+  """
+  exclusive: Boolean!
+  """
+  The id of the next to select custom item
+  """
+  next: Int!
+  variants: [Item!]
+}
+type Item implements Node {
+  id: ID!
+  """
+  eg.: cheesecake
+  """
+  name: String!
+  price: Float!
+  """
+  an url; eg.: https://example.com/cheesecake.png
+  """
+  image: String!
+  """
+  weather the item is (physically) in stock
+  """
+  inStock: Boolean!
+  """
+  Custom text, which will be displayed
+  """
+  notes: String!
+}
+"""
+An object with an ID.
+Follows the [Relay Global Object Identification Specification](https://relay.dev/graphql/objectidentification.htm)
+"""
+interface Node @goModel(model: "github.com/codecrafter404/bubble/ent.Noder") {
+  """
+  The id of the object.
+  """
+  id: ID!
+}
+type Order implements Node {
+  id: ID!
+  """
+  The time when the order has been submitted
+  """
+  submitted: Time!
+  """
+  A sequencially generated string to identifiy an open order
+  """
+  identifier: String!
+  state: OrderState!
+  """
+  on client generated orders total
+  """
+  total: Float!
+  items: [OrderItem!]
+  customItems: [OrderCustomItem!]
+}
+type OrderCustomItem implements Node {
+  id: ID!
+  quantity: Int!
+  selectedCustomItems: [SelectedCustomItem!]
+  masterCustomItem: CustomItem
+  order: Order
+}
+"""
+Possible directions in which to order a list of items when provided an `orderBy` argument.
+"""
+enum OrderDirection {
+  """
+  Specifies an ascending order for a given `orderBy` argument.
+  """
+  ASC
+  """
+  Specifies a descending order for a given `orderBy` argument.
+  """
+  DESC
+}
+type OrderItem implements Node {
+  id: ID!
+  quantity: Int!
+  item: Item
+  order: Order
+}
+"""
+OrderState is enum for the field state
+"""
+enum OrderState @goModel(model: "github.com/codecrafter404/bubble/ent/order.State") {
+  created
+  pending
+  compleated
+  cancelled
+}
+"""
+Information about pagination in a connection.
+https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo
+"""
+type PageInfo {
+  """
+  When paginating forwards, are there more items?
+  """
+  hasNextPage: Boolean!
+  """
+  When paginating backwards, are there more items?
+  """
+  hasPreviousPage: Boolean!
+  """
+  When paginating backwards, the cursor to continue.
+  """
+  startCursor: Cursor
+  """
+  When paginating forwards, the cursor to continue.
+  """
+  endCursor: Cursor
+}
+type Query {
+  """
+  Fetches an object given its ID.
+  """
+  node(
+    """
+    ID of the object.
+    """
+    id: ID!
+  ): Node
+  """
+  Lookup nodes by a list of IDs.
+  """
+  nodes(
+    """
+    The list of node IDs.
+    """
+    ids: [ID!]!
+  ): [Node]!
+  customItems: [CustomItem!]!
+  items: [Item!]!
+  orders: [Order!]!
+}
+type SelectedCustomItem implements Node {
+  id: ID!
+  selectedVariants: [Item!]
+  customItem: CustomItem
+}
