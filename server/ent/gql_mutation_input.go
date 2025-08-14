@@ -2,6 +2,68 @@
 
 package ent
 
+// CreateCustomItemInput represents a mutation input for creating customitems.
+type CreateCustomItemInput struct {
+	Name       string
+	Exclusive  bool
+	Prev       *int
+	VariantIDs []int
+}
+
+// Mutate applies the CreateCustomItemInput on the CustomItemMutation builder.
+func (i *CreateCustomItemInput) Mutate(m *CustomItemMutation) {
+	m.SetName(i.Name)
+	m.SetExclusive(i.Exclusive)
+	if v := i.Prev; v != nil {
+		m.SetPrev(*v)
+	}
+	if v := i.VariantIDs; len(v) > 0 {
+		m.AddVariantIDs(v...)
+	}
+}
+
+// SetInput applies the change-set in the CreateCustomItemInput on the CustomItemCreate builder.
+func (c *CustomItemCreate) SetInput(i CreateCustomItemInput) *CustomItemCreate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// UpdateCustomItemInput represents a mutation input for updating customitems.
+type UpdateCustomItemInput struct {
+	Name             *string
+	Exclusive        *bool
+	AddVariantIDs    []int
+	RemoveVariantIDs []int
+}
+
+// Mutate applies the UpdateCustomItemInput on the CustomItemMutation builder.
+func (i *UpdateCustomItemInput) Mutate(m *CustomItemMutation) {
+	if v := i.Name; v != nil {
+		m.SetName(*v)
+	}
+	if v := i.Exclusive; v != nil {
+		m.SetExclusive(*v)
+	}
+	if v := i.AddVariantIDs; len(v) > 0 {
+		m.AddVariantIDs(v...)
+	}
+	if v := i.RemoveVariantIDs; len(v) > 0 {
+		m.RemoveVariantIDs(v...)
+	}
+}
+
+// SetInput applies the change-set in the UpdateCustomItemInput on the CustomItemUpdate builder.
+func (c *CustomItemUpdate) SetInput(i UpdateCustomItemInput) *CustomItemUpdate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// SetInput applies the change-set in the UpdateCustomItemInput on the CustomItemUpdateOne builder.
+func (c *CustomItemUpdateOne) SetInput(i UpdateCustomItemInput) *CustomItemUpdateOne {
+	i.Mutate(c.Mutation())
+	return c
+}
+
 // CreateItemInput represents a mutation input for creating items.
 type CreateItemInput struct {
 	Name    string

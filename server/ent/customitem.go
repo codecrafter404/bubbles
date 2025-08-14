@@ -20,8 +20,8 @@ type CustomItem struct {
 	Name string `json:"name,omitempty"`
 	// if true then one or more variants can be selected at once
 	Exclusive bool `json:"exclusive,omitempty"`
-	// The id of the next to select custom item
-	Next int `json:"next,omitempty"`
+	// The id of the previous to selectable custom item
+	Prev *int `json:"prev,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the CustomItemQuery when eager-loading is set.
 	Edges        CustomItemEdges `json:"edges"`
@@ -57,7 +57,7 @@ func (*CustomItem) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case customitem.FieldExclusive:
 			values[i] = new(sql.NullBool)
-		case customitem.FieldID, customitem.FieldNext:
+		case customitem.FieldID, customitem.FieldPrev:
 			values[i] = new(sql.NullInt64)
 		case customitem.FieldName:
 			values[i] = new(sql.NullString)
@@ -94,11 +94,12 @@ func (_m *CustomItem) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Exclusive = value.Bool
 			}
-		case customitem.FieldNext:
+		case customitem.FieldPrev:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field next", values[i])
+				return fmt.Errorf("unexpected type %T for field prev", values[i])
 			} else if value.Valid {
-				_m.Next = int(value.Int64)
+				_m.Prev = new(int)
+				*_m.Prev = int(value.Int64)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -147,8 +148,10 @@ func (_m *CustomItem) String() string {
 	builder.WriteString("exclusive=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Exclusive))
 	builder.WriteString(", ")
-	builder.WriteString("next=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Next))
+	if v := _m.Prev; v != nil {
+		builder.WriteString("prev=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

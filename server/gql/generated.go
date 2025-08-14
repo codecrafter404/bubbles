@@ -53,7 +53,7 @@ type ComplexityRoot struct {
 		Exclusive func(childComplexity int) int
 		ID        func(childComplexity int) int
 		Name      func(childComplexity int) int
-		Next      func(childComplexity int) int
+		Prev      func(childComplexity int) int
 		Variants  func(childComplexity int) int
 	}
 
@@ -67,8 +67,14 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateItem func(childComplexity int, input ent.CreateItemInput) int
-		UpdateItem func(childComplexity int, id int, input ent.UpdateItemInput) int
+		CreateCustomItem  func(childComplexity int, input ent.CreateCustomItemInput) int
+		CreateItem        func(childComplexity int, input ent.CreateItemInput) int
+		DeleteCustomItem  func(childComplexity int, id int) int
+		DeleteCustomItems func(childComplexity int, ids []int) int
+		DeleteItem        func(childComplexity int, id int) int
+		DeleteItems       func(childComplexity int, ids []int) int
+		UpdateCustomItem  func(childComplexity int, id int, input ent.UpdateCustomItemInput) int
+		UpdateItem        func(childComplexity int, id int, input ent.UpdateItemInput) int
 	}
 
 	Order struct {
@@ -119,8 +125,14 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
+	CreateCustomItem(ctx context.Context, input ent.CreateCustomItemInput) (*ent.CustomItem, error)
+	UpdateCustomItem(ctx context.Context, id int, input ent.UpdateCustomItemInput) (*ent.CustomItem, error)
+	DeleteCustomItem(ctx context.Context, id int) (int, error)
+	DeleteCustomItems(ctx context.Context, ids []int) ([]int, error)
 	CreateItem(ctx context.Context, input ent.CreateItemInput) (*ent.Item, error)
 	UpdateItem(ctx context.Context, id int, input ent.UpdateItemInput) (*ent.Item, error)
+	DeleteItem(ctx context.Context, id int) (int, error)
+	DeleteItems(ctx context.Context, ids []int) ([]int, error)
 }
 type QueryResolver interface {
 	Node(ctx context.Context, id int) (ent.Noder, error)
@@ -170,12 +182,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.CustomItem.Name(childComplexity), true
 
-	case "CustomItem.next":
-		if e.complexity.CustomItem.Next == nil {
+	case "CustomItem.prev":
+		if e.complexity.CustomItem.Prev == nil {
 			break
 		}
 
-		return e.complexity.CustomItem.Next(childComplexity), true
+		return e.complexity.CustomItem.Prev(childComplexity), true
 
 	case "CustomItem.variants":
 		if e.complexity.CustomItem.Variants == nil {
@@ -226,6 +238,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Item.Price(childComplexity), true
 
+	case "Mutation.createCustomItem":
+		if e.complexity.Mutation.CreateCustomItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createCustomItem_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateCustomItem(childComplexity, args["input"].(ent.CreateCustomItemInput)), true
+
 	case "Mutation.createItem":
 		if e.complexity.Mutation.CreateItem == nil {
 			break
@@ -237,6 +261,66 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateItem(childComplexity, args["input"].(ent.CreateItemInput)), true
+
+	case "Mutation.deleteCustomItem":
+		if e.complexity.Mutation.DeleteCustomItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteCustomItem_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteCustomItem(childComplexity, args["id"].(int)), true
+
+	case "Mutation.deleteCustomItems":
+		if e.complexity.Mutation.DeleteCustomItems == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteCustomItems_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteCustomItems(childComplexity, args["ids"].([]int)), true
+
+	case "Mutation.deleteItem":
+		if e.complexity.Mutation.DeleteItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteItem_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteItem(childComplexity, args["id"].(int)), true
+
+	case "Mutation.deleteItems":
+		if e.complexity.Mutation.DeleteItems == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteItems_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteItems(childComplexity, args["ids"].([]int)), true
+
+	case "Mutation.updateCustomItem":
+		if e.complexity.Mutation.UpdateCustomItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCustomItem_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateCustomItem(childComplexity, args["id"].(int), args["input"].(ent.UpdateCustomItemInput)), true
 
 	case "Mutation.updateItem":
 		if e.complexity.Mutation.UpdateItem == nil {
@@ -464,7 +548,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputCreateCustomItemInput,
 		ec.unmarshalInputCreateItemInput,
+		ec.unmarshalInputUpdateCustomItemInput,
 		ec.unmarshalInputUpdateItemInput,
 	)
 	first := true
@@ -565,8 +651,31 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 var sources = []*ast.Source{
 	{Name: "../gql_schema/bubbles.graphql", Input: `scalar Time
 `, BuiltIn: false},
+	{Name: "../gql_schema/customitem.mutation.graphql", Input: `extend type Mutation {
+  createCustomItem(input: CreateCustomItemInput!): CustomItem!
+  updateCustomItem(id: ID!, input: UpdateCustomItemInput!): CustomItem!
+  deleteCustomItem(id: ID!): ID!
+  deleteCustomItems(ids: [ID!]!): [ID!]!
+}
+`, BuiltIn: false},
 	{Name: "../gql_schema/ent.graphql", Input: `directive @goField(forceResolver: Boolean, name: String, omittable: Boolean) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 directive @goModel(model: String, models: [String!], forceGenerate: Boolean) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
+"""
+CreateCustomItemInput is used for create CustomItem object.
+Input was generated by ent.
+"""
+input CreateCustomItemInput {
+  name: String!
+  """
+  if true then one or more variants can be selected at once
+  """
+  exclusive: Boolean!
+  """
+  The id of the previous to selectable custom item
+  """
+  prev: Int
+  variantIDs: [ID!]!
+}
 """
 CreateItemInput is used for create Item object.
 Input was generated by ent.
@@ -603,9 +712,9 @@ type CustomItem implements Node {
   """
   exclusive: Boolean!
   """
-  The id of the next to select custom item
+  The id of the previous to selectable custom item
   """
-  next: Int
+  prev: Int
   variants: [Item!]!
 }
 type Item implements Node {
@@ -742,6 +851,19 @@ type SelectedCustomItem implements Node {
   customItem: CustomItem
 }
 """
+UpdateCustomItemInput is used for update CustomItem object.
+Input was generated by ent.
+"""
+input UpdateCustomItemInput {
+  name: String
+  """
+  if true then one or more variants can be selected at once
+  """
+  exclusive: Boolean
+  addVariantIDs: [ID!]
+  removeVariantIDs: [ID!]
+}
+"""
 UpdateItemInput is used for update Item object.
 Input was generated by ent.
 """
@@ -765,9 +887,11 @@ input UpdateItemInput {
   notes: String
 }
 `, BuiltIn: false},
-	{Name: "../gql_schema/mutation.graphql", Input: `type Mutation {
+	{Name: "../gql_schema/item.mutation.graphql", Input: `extend type Mutation {
   createItem(input: CreateItemInput!): Item!
   updateItem(id: ID!, input: UpdateItemInput!): Item!
+  deleteItem(id: ID!): ID!
+  deleteItems(ids: [ID!]!): [ID!]!
 }
 `, BuiltIn: false},
 }
@@ -777,6 +901,17 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_createCustomItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateCustomItemInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐCreateCustomItemInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -785,6 +920,66 @@ func (ec *executionContext) field_Mutation_createItem_args(ctx context.Context, 
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteCustomItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2int)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteCustomItems_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕintᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2int)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteItems_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕintᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCustomItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2int)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateCustomItemInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐUpdateCustomItemInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
 	return args, nil
 }
 
@@ -1021,8 +1216,8 @@ func (ec *executionContext) fieldContext_CustomItem_exclusive(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _CustomItem_next(ctx context.Context, field graphql.CollectedField, obj *ent.CustomItem) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_CustomItem_next(ctx, field)
+func (ec *executionContext) _CustomItem_prev(ctx context.Context, field graphql.CollectedField, obj *ent.CustomItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CustomItem_prev(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1035,7 +1230,7 @@ func (ec *executionContext) _CustomItem_next(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Next, nil
+		return obj.Prev, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1044,12 +1239,12 @@ func (ec *executionContext) _CustomItem_next(ctx context.Context, field graphql.
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(*int)
 	fc.Result = res
-	return ec.marshalOInt2int(ctx, field.Selections, res)
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_CustomItem_next(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_CustomItem_prev(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "CustomItem",
 		Field:      field,
@@ -1384,6 +1579,250 @@ func (ec *executionContext) fieldContext_Item_notes(_ context.Context, field gra
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createCustomItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createCustomItem(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateCustomItem(rctx, fc.Args["input"].(ent.CreateCustomItemInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*ent.CustomItem)
+	fc.Result = res
+	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐCustomItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createCustomItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CustomItem_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CustomItem_name(ctx, field)
+			case "exclusive":
+				return ec.fieldContext_CustomItem_exclusive(ctx, field)
+			case "prev":
+				return ec.fieldContext_CustomItem_prev(ctx, field)
+			case "variants":
+				return ec.fieldContext_CustomItem_variants(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CustomItem", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createCustomItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCustomItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateCustomItem(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateCustomItem(rctx, fc.Args["id"].(int), fc.Args["input"].(ent.UpdateCustomItemInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*ent.CustomItem)
+	fc.Result = res
+	return ec.marshalNCustomItem2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐCustomItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateCustomItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CustomItem_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CustomItem_name(ctx, field)
+			case "exclusive":
+				return ec.fieldContext_CustomItem_exclusive(ctx, field)
+			case "prev":
+				return ec.fieldContext_CustomItem_prev(ctx, field)
+			case "variants":
+				return ec.fieldContext_CustomItem_variants(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CustomItem", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCustomItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteCustomItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteCustomItem(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteCustomItem(rctx, fc.Args["id"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNID2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteCustomItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteCustomItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteCustomItems(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteCustomItems(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteCustomItems(rctx, fc.Args["ids"].([]int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]int)
+	fc.Result = res
+	return ec.marshalNID2ᚕintᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteCustomItems(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteCustomItems_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createItem(ctx, field)
 	if err != nil {
@@ -1516,6 +1955,116 @@ func (ec *executionContext) fieldContext_Mutation_updateItem(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteItem(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteItem(rctx, fc.Args["id"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNID2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteItems(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteItems(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteItems(rctx, fc.Args["ids"].([]int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]int)
+	fc.Result = res
+	return ec.marshalNID2ᚕintᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteItems(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteItems_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2025,8 +2574,8 @@ func (ec *executionContext) fieldContext_OrderCustomItem_masterCustomItem(_ cont
 				return ec.fieldContext_CustomItem_name(ctx, field)
 			case "exclusive":
 				return ec.fieldContext_CustomItem_exclusive(ctx, field)
-			case "next":
-				return ec.fieldContext_CustomItem_next(ctx, field)
+			case "prev":
+				return ec.fieldContext_CustomItem_prev(ctx, field)
 			case "variants":
 				return ec.fieldContext_CustomItem_variants(ctx, field)
 			}
@@ -2615,8 +3164,8 @@ func (ec *executionContext) fieldContext_Query_customItems(_ context.Context, fi
 				return ec.fieldContext_CustomItem_name(ctx, field)
 			case "exclusive":
 				return ec.fieldContext_CustomItem_exclusive(ctx, field)
-			case "next":
-				return ec.fieldContext_CustomItem_next(ctx, field)
+			case "prev":
+				return ec.fieldContext_CustomItem_prev(ctx, field)
 			case "variants":
 				return ec.fieldContext_CustomItem_variants(ctx, field)
 			}
@@ -3016,8 +3565,8 @@ func (ec *executionContext) fieldContext_SelectedCustomItem_customItem(_ context
 				return ec.fieldContext_CustomItem_name(ctx, field)
 			case "exclusive":
 				return ec.fieldContext_CustomItem_exclusive(ctx, field)
-			case "next":
-				return ec.fieldContext_CustomItem_next(ctx, field)
+			case "prev":
+				return ec.fieldContext_CustomItem_prev(ctx, field)
 			case "variants":
 				return ec.fieldContext_CustomItem_variants(ctx, field)
 			}
@@ -4978,6 +5527,54 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputCreateCustomItemInput(ctx context.Context, obj any) (ent.CreateCustomItemInput, error) {
+	var it ent.CreateCustomItemInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "exclusive", "prev", "variantIDs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "exclusive":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exclusive"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Exclusive = data
+		case "prev":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("prev"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Prev = data
+		case "variantIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variantIDs"))
+			data, err := ec.unmarshalNID2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VariantIDs = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateItemInput(ctx context.Context, obj any) (ent.CreateItemInput, error) {
 	var it ent.CreateItemInput
 	asMap := map[string]any{}
@@ -5027,6 +5624,54 @@ func (ec *executionContext) unmarshalInputCreateItemInput(ctx context.Context, o
 				return it, err
 			}
 			it.Notes = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateCustomItemInput(ctx context.Context, obj any) (ent.UpdateCustomItemInput, error) {
+	var it ent.UpdateCustomItemInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "exclusive", "addVariantIDs", "removeVariantIDs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "exclusive":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exclusive"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Exclusive = data
+		case "addVariantIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addVariantIDs"))
+			data, err := ec.unmarshalOID2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AddVariantIDs = data
+		case "removeVariantIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("removeVariantIDs"))
+			data, err := ec.unmarshalOID2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RemoveVariantIDs = data
 		}
 	}
 
@@ -5161,8 +5806,8 @@ func (ec *executionContext) _CustomItem(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "next":
-			out.Values[i] = ec._CustomItem_next(ctx, field, obj)
+		case "prev":
+			out.Values[i] = ec._CustomItem_prev(ctx, field, obj)
 		case "variants":
 			field := field
 
@@ -5305,6 +5950,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "createCustomItem":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createCustomItem(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateCustomItem":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCustomItem(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteCustomItem":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteCustomItem(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteCustomItems":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteCustomItems(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createItem":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createItem(ctx, field)
@@ -5315,6 +5988,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateItem":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateItem(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteItem":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteItem(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteItems":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteItems(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -6381,9 +7068,18 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNCreateCustomItemInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐCreateCustomItemInput(ctx context.Context, v any) (ent.CreateCustomItemInput, error) {
+	res, err := ec.unmarshalInputCreateCustomItemInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNCreateItemInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐCreateItemInput(ctx context.Context, v any) (ent.CreateItemInput, error) {
 	res, err := ec.unmarshalInputCreateItemInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCustomItem2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐCustomItem(ctx context.Context, sel ast.SelectionSet, v ent.CustomItem) graphql.Marshaler {
+	return ec._CustomItem(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNCustomItem2ᚕᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐCustomItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.CustomItem) graphql.Marshaler {
@@ -6740,6 +7436,11 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 	return res
 }
 
+func (ec *executionContext) unmarshalNUpdateCustomItemInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐUpdateCustomItemInput(ctx context.Context, v any) (ent.UpdateCustomItemInput, error) {
+	res, err := ec.unmarshalInputUpdateCustomItemInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNUpdateItemInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐUpdateItemInput(ctx context.Context, v any) (ent.UpdateItemInput, error) {
 	res, err := ec.unmarshalInputUpdateItemInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -7068,15 +7769,57 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
-func (ec *executionContext) unmarshalOInt2int(ctx context.Context, v any) (int, error) {
-	res, err := graphql.UnmarshalInt(v)
-	return res, graphql.ErrorOnPath(ctx, err)
+func (ec *executionContext) unmarshalOID2ᚕintᚄ(ctx context.Context, v any) ([]int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]int, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2int(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
-func (ec *executionContext) marshalOInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+func (ec *executionContext) marshalOID2ᚕintᚄ(ctx context.Context, sel ast.SelectionSet, v []int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2int(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
 	_ = sel
 	_ = ctx
-	res := graphql.MarshalInt(v)
+	res := graphql.MarshalInt(*v)
 	return res
 }
 

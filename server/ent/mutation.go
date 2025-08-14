@@ -45,8 +45,8 @@ type CustomItemMutation struct {
 	id              *int
 	name            *string
 	exclusive       *bool
-	next            *int
-	addnext         *int
+	prev            *int
+	addprev         *int
 	clearedFields   map[string]struct{}
 	variants        map[int]struct{}
 	removedvariants map[int]struct{}
@@ -226,74 +226,74 @@ func (m *CustomItemMutation) ResetExclusive() {
 	m.exclusive = nil
 }
 
-// SetNext sets the "next" field.
-func (m *CustomItemMutation) SetNext(i int) {
-	m.next = &i
-	m.addnext = nil
+// SetPrev sets the "prev" field.
+func (m *CustomItemMutation) SetPrev(i int) {
+	m.prev = &i
+	m.addprev = nil
 }
 
-// Next returns the value of the "next" field in the mutation.
-func (m *CustomItemMutation) Next() (r int, exists bool) {
-	v := m.next
+// Prev returns the value of the "prev" field in the mutation.
+func (m *CustomItemMutation) Prev() (r int, exists bool) {
+	v := m.prev
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldNext returns the old "next" field's value of the CustomItem entity.
+// OldPrev returns the old "prev" field's value of the CustomItem entity.
 // If the CustomItem object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CustomItemMutation) OldNext(ctx context.Context) (v int, err error) {
+func (m *CustomItemMutation) OldPrev(ctx context.Context) (v *int, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldNext is only allowed on UpdateOne operations")
+		return v, errors.New("OldPrev is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldNext requires an ID field in the mutation")
+		return v, errors.New("OldPrev requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldNext: %w", err)
+		return v, fmt.Errorf("querying old value for OldPrev: %w", err)
 	}
-	return oldValue.Next, nil
+	return oldValue.Prev, nil
 }
 
-// AddNext adds i to the "next" field.
-func (m *CustomItemMutation) AddNext(i int) {
-	if m.addnext != nil {
-		*m.addnext += i
+// AddPrev adds i to the "prev" field.
+func (m *CustomItemMutation) AddPrev(i int) {
+	if m.addprev != nil {
+		*m.addprev += i
 	} else {
-		m.addnext = &i
+		m.addprev = &i
 	}
 }
 
-// AddedNext returns the value that was added to the "next" field in this mutation.
-func (m *CustomItemMutation) AddedNext() (r int, exists bool) {
-	v := m.addnext
+// AddedPrev returns the value that was added to the "prev" field in this mutation.
+func (m *CustomItemMutation) AddedPrev() (r int, exists bool) {
+	v := m.addprev
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// ClearNext clears the value of the "next" field.
-func (m *CustomItemMutation) ClearNext() {
-	m.next = nil
-	m.addnext = nil
-	m.clearedFields[customitem.FieldNext] = struct{}{}
+// ClearPrev clears the value of the "prev" field.
+func (m *CustomItemMutation) ClearPrev() {
+	m.prev = nil
+	m.addprev = nil
+	m.clearedFields[customitem.FieldPrev] = struct{}{}
 }
 
-// NextCleared returns if the "next" field was cleared in this mutation.
-func (m *CustomItemMutation) NextCleared() bool {
-	_, ok := m.clearedFields[customitem.FieldNext]
+// PrevCleared returns if the "prev" field was cleared in this mutation.
+func (m *CustomItemMutation) PrevCleared() bool {
+	_, ok := m.clearedFields[customitem.FieldPrev]
 	return ok
 }
 
-// ResetNext resets all changes to the "next" field.
-func (m *CustomItemMutation) ResetNext() {
-	m.next = nil
-	m.addnext = nil
-	delete(m.clearedFields, customitem.FieldNext)
+// ResetPrev resets all changes to the "prev" field.
+func (m *CustomItemMutation) ResetPrev() {
+	m.prev = nil
+	m.addprev = nil
+	delete(m.clearedFields, customitem.FieldPrev)
 }
 
 // AddVariantIDs adds the "variants" edge to the Item entity by ids.
@@ -391,8 +391,8 @@ func (m *CustomItemMutation) Fields() []string {
 	if m.exclusive != nil {
 		fields = append(fields, customitem.FieldExclusive)
 	}
-	if m.next != nil {
-		fields = append(fields, customitem.FieldNext)
+	if m.prev != nil {
+		fields = append(fields, customitem.FieldPrev)
 	}
 	return fields
 }
@@ -406,8 +406,8 @@ func (m *CustomItemMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case customitem.FieldExclusive:
 		return m.Exclusive()
-	case customitem.FieldNext:
-		return m.Next()
+	case customitem.FieldPrev:
+		return m.Prev()
 	}
 	return nil, false
 }
@@ -421,8 +421,8 @@ func (m *CustomItemMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldName(ctx)
 	case customitem.FieldExclusive:
 		return m.OldExclusive(ctx)
-	case customitem.FieldNext:
-		return m.OldNext(ctx)
+	case customitem.FieldPrev:
+		return m.OldPrev(ctx)
 	}
 	return nil, fmt.Errorf("unknown CustomItem field %s", name)
 }
@@ -446,12 +446,12 @@ func (m *CustomItemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetExclusive(v)
 		return nil
-	case customitem.FieldNext:
+	case customitem.FieldPrev:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetNext(v)
+		m.SetPrev(v)
 		return nil
 	}
 	return fmt.Errorf("unknown CustomItem field %s", name)
@@ -461,8 +461,8 @@ func (m *CustomItemMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *CustomItemMutation) AddedFields() []string {
 	var fields []string
-	if m.addnext != nil {
-		fields = append(fields, customitem.FieldNext)
+	if m.addprev != nil {
+		fields = append(fields, customitem.FieldPrev)
 	}
 	return fields
 }
@@ -472,8 +472,8 @@ func (m *CustomItemMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *CustomItemMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
-	case customitem.FieldNext:
-		return m.AddedNext()
+	case customitem.FieldPrev:
+		return m.AddedPrev()
 	}
 	return nil, false
 }
@@ -483,12 +483,12 @@ func (m *CustomItemMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *CustomItemMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case customitem.FieldNext:
+	case customitem.FieldPrev:
 		v, ok := value.(int)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.AddNext(v)
+		m.AddPrev(v)
 		return nil
 	}
 	return fmt.Errorf("unknown CustomItem numeric field %s", name)
@@ -498,8 +498,8 @@ func (m *CustomItemMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *CustomItemMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(customitem.FieldNext) {
-		fields = append(fields, customitem.FieldNext)
+	if m.FieldCleared(customitem.FieldPrev) {
+		fields = append(fields, customitem.FieldPrev)
 	}
 	return fields
 }
@@ -515,8 +515,8 @@ func (m *CustomItemMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *CustomItemMutation) ClearField(name string) error {
 	switch name {
-	case customitem.FieldNext:
-		m.ClearNext()
+	case customitem.FieldPrev:
+		m.ClearPrev()
 		return nil
 	}
 	return fmt.Errorf("unknown CustomItem nullable field %s", name)
@@ -532,8 +532,8 @@ func (m *CustomItemMutation) ResetField(name string) error {
 	case customitem.FieldExclusive:
 		m.ResetExclusive()
 		return nil
-	case customitem.FieldNext:
-		m.ResetNext()
+	case customitem.FieldPrev:
+		m.ResetPrev()
 		return nil
 	}
 	return fmt.Errorf("unknown CustomItem field %s", name)

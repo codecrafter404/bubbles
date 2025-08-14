@@ -63,9 +63,9 @@ func Exclusive(v bool) predicate.CustomItem {
 	return predicate.CustomItem(sql.FieldEQ(FieldExclusive, v))
 }
 
-// Next applies equality check predicate on the "next" field. It's identical to NextEQ.
-func Next(v int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldEQ(FieldNext, v))
+// Prev applies equality check predicate on the "prev" field. It's identical to PrevEQ.
+func Prev(v int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldEQ(FieldPrev, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -143,54 +143,54 @@ func ExclusiveNEQ(v bool) predicate.CustomItem {
 	return predicate.CustomItem(sql.FieldNEQ(FieldExclusive, v))
 }
 
-// NextEQ applies the EQ predicate on the "next" field.
-func NextEQ(v int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldEQ(FieldNext, v))
+// PrevEQ applies the EQ predicate on the "prev" field.
+func PrevEQ(v int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldEQ(FieldPrev, v))
 }
 
-// NextNEQ applies the NEQ predicate on the "next" field.
-func NextNEQ(v int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldNEQ(FieldNext, v))
+// PrevNEQ applies the NEQ predicate on the "prev" field.
+func PrevNEQ(v int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldNEQ(FieldPrev, v))
 }
 
-// NextIn applies the In predicate on the "next" field.
-func NextIn(vs ...int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldIn(FieldNext, vs...))
+// PrevIn applies the In predicate on the "prev" field.
+func PrevIn(vs ...int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldIn(FieldPrev, vs...))
 }
 
-// NextNotIn applies the NotIn predicate on the "next" field.
-func NextNotIn(vs ...int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldNotIn(FieldNext, vs...))
+// PrevNotIn applies the NotIn predicate on the "prev" field.
+func PrevNotIn(vs ...int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldNotIn(FieldPrev, vs...))
 }
 
-// NextGT applies the GT predicate on the "next" field.
-func NextGT(v int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldGT(FieldNext, v))
+// PrevGT applies the GT predicate on the "prev" field.
+func PrevGT(v int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldGT(FieldPrev, v))
 }
 
-// NextGTE applies the GTE predicate on the "next" field.
-func NextGTE(v int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldGTE(FieldNext, v))
+// PrevGTE applies the GTE predicate on the "prev" field.
+func PrevGTE(v int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldGTE(FieldPrev, v))
 }
 
-// NextLT applies the LT predicate on the "next" field.
-func NextLT(v int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldLT(FieldNext, v))
+// PrevLT applies the LT predicate on the "prev" field.
+func PrevLT(v int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldLT(FieldPrev, v))
 }
 
-// NextLTE applies the LTE predicate on the "next" field.
-func NextLTE(v int) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldLTE(FieldNext, v))
+// PrevLTE applies the LTE predicate on the "prev" field.
+func PrevLTE(v int) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldLTE(FieldPrev, v))
 }
 
-// NextIsNil applies the IsNil predicate on the "next" field.
-func NextIsNil() predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldIsNull(FieldNext))
+// PrevIsNil applies the IsNil predicate on the "prev" field.
+func PrevIsNil() predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldIsNull(FieldPrev))
 }
 
-// NextNotNil applies the NotNil predicate on the "next" field.
-func NextNotNil() predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldNotNull(FieldNext))
+// PrevNotNil applies the NotNil predicate on the "prev" field.
+func PrevNotNil() predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldNotNull(FieldPrev))
 }
 
 // HasVariants applies the HasEdge predicate on the "variants" edge.

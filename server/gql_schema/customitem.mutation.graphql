@@ -1,0 +1,6 @@
+extend type Mutation {
+  createCustomItem(input: CreateCustomItemInput!): CustomItem!
+  updateCustomItem(id: ID!, input: UpdateCustomItemInput!): CustomItem!
+  deleteCustomItem(id: ID!): ID!
+  deleteCustomItems(ids: [ID!]!): [ID!]!
+}

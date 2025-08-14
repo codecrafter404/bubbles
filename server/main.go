@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"entgo.io/contrib/entgql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/codecrafter404/bubble/config"
@@ -56,6 +57,7 @@ func main() {
 	)
 
 	srv := handler.NewDefaultServer(gql.NewSchema(client))
+	srv.Use(entgql.Transactioner{TxOpener: client})
 	http.Handle("/query", srv)
 
 	Logger.Info().Int("port", config.ServerConfig.ServerPort).Msg("Listening for incoming connections")

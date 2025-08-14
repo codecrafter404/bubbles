@@ -57,10 +57,10 @@ func (_q *CustomItemQuery) collectField(ctx context.Context, oneNode bool, opCtx
 				selectedFields = append(selectedFields, customitem.FieldExclusive)
 				fieldSeen[customitem.FieldExclusive] = struct{}{}
 			}
-		case "next":
-			if _, ok := fieldSeen[customitem.FieldNext]; !ok {
-				selectedFields = append(selectedFields, customitem.FieldNext)
-				fieldSeen[customitem.FieldNext] = struct{}{}
+		case "prev":
+			if _, ok := fieldSeen[customitem.FieldPrev]; !ok {
+				selectedFields = append(selectedFields, customitem.FieldPrev)
+				fieldSeen[customitem.FieldPrev] = struct{}{}
 			}
 		case "id":
 		case "__typename":

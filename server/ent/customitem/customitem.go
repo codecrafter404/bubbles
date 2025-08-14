@@ -16,8 +16,8 @@ const (
 	FieldName = "name"
 	// FieldExclusive holds the string denoting the exclusive field in the database.
 	FieldExclusive = "exclusive"
-	// FieldNext holds the string denoting the next field in the database.
-	FieldNext = "next"
+	// FieldPrev holds the string denoting the prev field in the database.
+	FieldPrev = "prev"
 	// EdgeVariants holds the string denoting the variants edge name in mutations.
 	EdgeVariants = "variants"
 	// Table holds the table name of the customitem in the database.
@@ -36,7 +36,7 @@ var Columns = []string{
 	FieldID,
 	FieldName,
 	FieldExclusive,
-	FieldNext,
+	FieldPrev,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -67,9 +67,9 @@ func ByExclusive(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExclusive, opts...).ToFunc()
 }
 
-// ByNext orders the results by the next field.
-func ByNext(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldNext, opts...).ToFunc()
+// ByPrev orders the results by the prev field.
+func ByPrev(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrev, opts...).ToFunc()
 }
 
 // ByVariantsCount orders the results by variants count.

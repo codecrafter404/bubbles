@@ -13,23 +13,45 @@ import (
 
 // CreateItem is the resolver for the createItem field.
 func (r *mutationResolver) CreateItem(ctx context.Context, input ent.CreateItemInput) (*ent.Item, error) {
+	client := ent.FromContext(ctx)
+
 	if input.Price < 0 {
 		return nil, fmt.Errorf("The price must be >= 0")
 	}
 
-	return r.client.Item.Create().SetInput(input).Save(ctx)
+	return client.Item.Create().SetInput(input).Save(ctx)
 }
 
 // UpdateItem is the resolver for the updateItem field.
 func (r *mutationResolver) UpdateItem(ctx context.Context, id int, input ent.UpdateItemInput) (*ent.Item, error) {
+	client := ent.FromContext(ctx)
+
 	if input.Price != nil && *input.Price < 0.0 {
 		return nil, fmt.Errorf("The price must be >= 0")
 	}
 
-	return r.client.Item.UpdateOneID(id).SetInput(input).Save(ctx)
+	return client.Item.UpdateOneID(id).SetInput(input).Save(ctx)
 }
 
-// Mutation returns MutationResolver implementation.
-func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+// Deleteitem is the resolver for the deleteitem field.
+func (r *mutationResolver) DeleteItem(ctx context.Context, id int) (int, error) {
+	client := ent.FromContext(ctx)
 
-type mutationResolver struct{ *Resolver }
+	if err := client.Item.DeleteOneID(id).Exec(ctx); err != nil {
+		return -1, err
+	}
+
+	return id, nil
+}
+
+// DeleteItems is the resolver for the deleteItems field.
+func (r *mutationResolver) DeleteItems(ctx context.Context, ids []int) ([]int, error) {
+	client := ent.FromContext(ctx)
+
+	for _, i := range ids {
+		if err := client.CustomItem.DeleteOneID(i).Exec(ctx); err != nil {
+			return []int{}, fmt.Errorf("Failed to delete item with id %d: %+v", i, err)
+		}
+	}
+	return ids, nil
+}

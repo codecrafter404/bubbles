@@ -32,16 +32,16 @@ func (_c *CustomItemCreate) SetExclusive(v bool) *CustomItemCreate {
 	return _c
 }
 
-// SetNext sets the "next" field.
-func (_c *CustomItemCreate) SetNext(v int) *CustomItemCreate {
-	_c.mutation.SetNext(v)
+// SetPrev sets the "prev" field.
+func (_c *CustomItemCreate) SetPrev(v int) *CustomItemCreate {
+	_c.mutation.SetPrev(v)
 	return _c
 }
 
-// SetNillableNext sets the "next" field if the given value is not nil.
-func (_c *CustomItemCreate) SetNillableNext(v *int) *CustomItemCreate {
+// SetNillablePrev sets the "prev" field if the given value is not nil.
+func (_c *CustomItemCreate) SetNillablePrev(v *int) *CustomItemCreate {
 	if v != nil {
-		_c.SetNext(*v)
+		_c.SetPrev(*v)
 	}
 	return _c
 }
@@ -138,9 +138,9 @@ func (_c *CustomItemCreate) createSpec() (*CustomItem, *sqlgraph.CreateSpec) {
 		_spec.SetField(customitem.FieldExclusive, field.TypeBool, value)
 		_node.Exclusive = value
 	}
-	if value, ok := _c.mutation.Next(); ok {
-		_spec.SetField(customitem.FieldNext, field.TypeInt, value)
-		_node.Next = value
+	if value, ok := _c.mutation.Prev(); ok {
+		_spec.SetField(customitem.FieldPrev, field.TypeInt, value)
+		_node.Prev = &value
 	}
 	if nodes := _c.mutation.VariantsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
