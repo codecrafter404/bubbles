@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -65,11 +64,6 @@ func ValidColumn(column string) bool {
 	}
 	return false
 }
-
-var (
-	// DefaultSubmitted holds the default value on creation for the "submitted" field.
-	DefaultSubmitted time.Time
-)
 
 // State defines the type for the "state" enum field.
 type State string

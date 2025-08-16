@@ -1,8 +1,6 @@
 package schema
 
 import (
-	"time"
-
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
 	"entgo.io/ent/schema"
@@ -18,7 +16,7 @@ type Order struct {
 // Fields of the Order.
 func (Order) Fields() []ent.Field {
 	return []ent.Field{
-		field.Time("submitted").Default(time.Now()).Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput), entgql.OrderField("SUBMITTED")).Immutable().Comment("The time when the order has been submitted"),
+		field.Time("submitted").Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput), entgql.OrderField("SUBMITTED")).Immutable().Comment("The time when the order has been submitted"),
 		field.String("identifier").Immutable().Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput)).Comment("A sequencially generated string to identifiy an open order"),
 		field.Enum("state").Values("created", "pending", "compleated", "cancelled").Default("created").Annotations(entgql.OrderField("STATE")),
 		field.Float("total").Comment("on server generated orders total").Immutable().Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput), entgql.OrderField("TOTAL")),

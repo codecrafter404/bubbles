@@ -3,9 +3,6 @@
 package ent
 
 import (
-	"time"
-
-	"github.com/codecrafter404/bubble/ent/order"
 	"github.com/codecrafter404/bubble/ent/schema"
 )
 
@@ -15,8 +12,4 @@ import (
 func init() {
 	orderFields := schema.Order{}.Fields()
 	_ = orderFields
-	// orderDescSubmitted is the schema descriptor for submitted field.
-	orderDescSubmitted := orderFields[0].Descriptor()
-	// order.DefaultSubmitted holds the default value on creation for the submitted field.
-	order.DefaultSubmitted = orderDescSubmitted.Default.(time.Time)
 }

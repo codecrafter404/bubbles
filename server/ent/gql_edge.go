@@ -64,28 +64,12 @@ func (_m *OrderCustomItem) MasterCustomItem(ctx context.Context) (*CustomItem, e
 	return result, err
 }
 
-func (_m *OrderCustomItem) Order(ctx context.Context) (*Order, error) {
-	result, err := _m.Edges.OrderOrErr()
-	if IsNotLoaded(err) {
-		result, err = _m.QueryOrder().Only(ctx)
-	}
-	return result, MaskNotFound(err)
-}
-
 func (_m *OrderItem) Item(ctx context.Context) (*Item, error) {
 	result, err := _m.Edges.ItemOrErr()
 	if IsNotLoaded(err) {
 		result, err = _m.QueryItem().Only(ctx)
 	}
 	return result, err
-}
-
-func (_m *OrderItem) Order(ctx context.Context) (*Order, error) {
-	result, err := _m.Edges.OrderOrErr()
-	if IsNotLoaded(err) {
-		result, err = _m.QueryOrder().Only(ctx)
-	}
-	return result, MaskNotFound(err)
 }
 
 func (_m *SelectedCustomItem) SelectedVariants(ctx context.Context) (result []*Item, err error) {

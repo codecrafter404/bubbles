@@ -98,6 +98,9 @@ func newCustomItemPaginateArgs(rv map[string]any) *customitemPaginateArgs {
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
 	}
+	if v, ok := rv[whereField].(*CustomItemWhereInput); ok {
+		args.opts = append(args.opts, WithCustomItemFilter(v.Filter))
+	}
 	return args
 }
 
@@ -181,6 +184,9 @@ func newItemPaginateArgs(rv map[string]any) *itemPaginateArgs {
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*ItemWhereInput); ok {
+		args.opts = append(args.opts, WithItemFilter(v.Filter))
 	}
 	return args
 }
@@ -309,6 +315,9 @@ func newOrderPaginateArgs(rv map[string]any) *orderPaginateArgs {
 			}
 		}
 	}
+	if v, ok := rv[whereField].(*OrderWhereInput); ok {
+		args.opts = append(args.opts, WithOrderFilter(v.Filter))
+	}
 	return args
 }
 
@@ -357,17 +366,6 @@ func (_q *OrderCustomItemQuery) collectField(ctx context.Context, oneNode bool, 
 				return err
 			}
 			_q.withMasterCustomItem = query
-
-		case "order":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&OrderClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, orderImplementors)...); err != nil {
-				return err
-			}
-			_q.withOrder = query
 		case "quantity":
 			if _, ok := fieldSeen[ordercustomitem.FieldQuantity]; !ok {
 				selectedFields = append(selectedFields, ordercustomitem.FieldQuantity)
@@ -408,6 +406,9 @@ func newOrderCustomItemPaginateArgs(rv map[string]any) *ordercustomitemPaginateA
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
 	}
+	if v, ok := rv[whereField].(*OrderCustomItemWhereInput); ok {
+		args.opts = append(args.opts, WithOrderCustomItemFilter(v.Filter))
+	}
 	return args
 }
 
@@ -443,17 +444,6 @@ func (_q *OrderItemQuery) collectField(ctx context.Context, oneNode bool, opCtx 
 				return err
 			}
 			_q.withItem = query
-
-		case "order":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&OrderClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, orderImplementors)...); err != nil {
-				return err
-			}
-			_q.withOrder = query
 		case "quantity":
 			if _, ok := fieldSeen[orderitem.FieldQuantity]; !ok {
 				selectedFields = append(selectedFields, orderitem.FieldQuantity)
@@ -493,6 +483,9 @@ func newOrderItemPaginateArgs(rv map[string]any) *orderitemPaginateArgs {
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*OrderItemWhereInput); ok {
+		args.opts = append(args.opts, WithOrderItemFilter(v.Filter))
 	}
 	return args
 }
@@ -564,6 +557,9 @@ func newSelectedCustomItemPaginateArgs(rv map[string]any) *selectedcustomitemPag
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*SelectedCustomItemWhereInput); ok {
+		args.opts = append(args.opts, WithSelectedCustomItemFilter(v.Filter))
 	}
 	return args
 }

@@ -24,7 +24,7 @@ func (OrderItem) Fields() []ent.Field {
 func (OrderItem) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("item", Item.Type).Unique().Immutable().Required(),
-		edge.From("order", Order.Type).Ref("items").Unique().Immutable().Annotations(entgql.Skip(entgql.SkipMutationCreateInput)),
+		edge.From("order", Order.Type).Ref("items").Unique().Immutable().Annotations(entgql.Skip(entgql.SkipAll)),
 	}
 }
 func (OrderItem) Annotations() []schema.Annotation {

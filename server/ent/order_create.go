@@ -28,14 +28,6 @@ func (_c *OrderCreate) SetSubmitted(v time.Time) *OrderCreate {
 	return _c
 }
 
-// SetNillableSubmitted sets the "submitted" field if the given value is not nil.
-func (_c *OrderCreate) SetNillableSubmitted(v *time.Time) *OrderCreate {
-	if v != nil {
-		_c.SetSubmitted(*v)
-	}
-	return _c
-}
-
 // SetIdentifier sets the "identifier" field.
 func (_c *OrderCreate) SetIdentifier(v string) *OrderCreate {
 	_c.mutation.SetIdentifier(v)
@@ -127,10 +119,6 @@ func (_c *OrderCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *OrderCreate) defaults() {
-	if _, ok := _c.mutation.Submitted(); !ok {
-		v := order.DefaultSubmitted
-		_c.mutation.SetSubmitted(v)
-	}
 	if _, ok := _c.mutation.State(); !ok {
 		v := order.DefaultState
 		_c.mutation.SetState(v)

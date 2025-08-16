@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/codecrafter404/bubble/ent"
 	"github.com/codecrafter404/bubble/ent/customitem"
@@ -73,7 +74,7 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, input ent.CreateOrde
 
 	NotifyEvent(NotificationTypeNewOrder, r.notification)
 	// set missing inputs: total, identifier
-	return client.Order.Create().SetInput(input).SetIdentifier(identifier).SetTotal(total).Save(ctx)
+	return client.Order.Create().SetInput(input).SetIdentifier(identifier).SetTotal(total).SetSubmitted(time.Now()).Save(ctx)
 }
 
 // UpdateOrder is the resolver for the updateOrder field.

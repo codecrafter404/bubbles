@@ -28,7 +28,7 @@ func main() {
 		Logger()
 
 	config := config.Config{
-		DbPath: "file:bubbles.db?_foreign_keys=on",
+		DbPath: "file:" + "bubbles.db" + "?_foreign_keys=on",
 		OrderConfig: config.OrderConfig{
 			MaxNotificationQueue: 1000,
 			MaximalIdentifiers:   100,

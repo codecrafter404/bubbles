@@ -38,7 +38,7 @@ type OrderItemEdges struct {
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [1]map[string]int
 }
 
 // ItemOrErr returns the Item value or an error if the edge

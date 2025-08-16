@@ -32,8 +32,8 @@ func (r *queryResolver) Items(ctx context.Context) ([]*ent.Item, error) {
 }
 
 // Orders is the resolver for the orders field.
-func (r *queryResolver) Orders(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.OrderOrder) (*ent.OrderConnection, error) {
-	return r.client.Order.Query().Paginate(ctx, after, first, before, last, ent.WithOrderOrder(orderBy))
+func (r *queryResolver) Orders(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.OrderOrder, where *ent.OrderWhereInput) (*ent.OrderConnection, error) {
+	return r.client.Order.Query().Paginate(ctx, after, first, before, last, ent.WithOrderOrder(orderBy), ent.WithOrderFilter(where.Filter))
 }
 
 // Query returns QueryResolver implementation.

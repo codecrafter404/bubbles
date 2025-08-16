@@ -25,7 +25,7 @@ func (OrderCustomItem) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("selected_custom_items", SelectedCustomItem.Type).Immutable(), //NOTE: This field SHOULD NOT be used as it will be overwritten
 		edge.To("master_custom_item", CustomItem.Type).Unique().Immutable().Required(),
-		edge.From("order", Order.Type).Ref("custom_items").Unique().Annotations(entgql.Skip(entgql.SkipMutationCreateInput)),
+		edge.From("order", Order.Type).Ref("custom_items").Unique().Annotations(entgql.Skip(entgql.SkipAll)),
 	}
 }
 func (OrderCustomItem) Annotations() []schema.Annotation {
