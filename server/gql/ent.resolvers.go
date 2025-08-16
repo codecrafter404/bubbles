@@ -7,6 +7,7 @@ package gql
 import (
 	"context"
 
+	"entgo.io/contrib/entgql"
 	"github.com/codecrafter404/bubble/ent"
 )
 
@@ -31,11 +32,21 @@ func (r *queryResolver) Items(ctx context.Context) ([]*ent.Item, error) {
 }
 
 // Orders is the resolver for the orders field.
-func (r *queryResolver) Orders(ctx context.Context) ([]*ent.Order, error) {
-	return r.client.Order.Query().All(ctx)
+func (r *queryResolver) Orders(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.OrderOrder) (*ent.OrderConnection, error) {
+	return r.client.Order.Query().Paginate(ctx, after, first, before, last, ent.WithOrderOrder(orderBy))
 }
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// CreateOrderCustomItemInput returns CreateOrderCustomItemInputResolver implementation.
+func (r *Resolver) CreateOrderCustomItemInput() CreateOrderCustomItemInputResolver {
+	return &createOrderCustomItemInputResolver{r}
+}
+
+// CreateOrderInput returns CreateOrderInputResolver implementation.
+func (r *Resolver) CreateOrderInput() CreateOrderInputResolver { return &createOrderInputResolver{r} }
+
 type queryResolver struct{ *Resolver }
+type createOrderCustomItemInputResolver struct{ *Resolver }
+type createOrderInputResolver struct{ *Resolver }

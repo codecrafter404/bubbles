@@ -12,7 +12,7 @@ var (
 	CustomItemsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
-		{Name: "exclusive", Type: field.TypeBool},
+		{Name: "allow_only_one", Type: field.TypeBool},
 		{Name: "prev", Type: field.TypeInt, Nullable: true},
 	}
 	// CustomItemsTable holds the schema information for the "custom_items" table.
@@ -71,7 +71,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "quantity", Type: field.TypeInt},
 		{Name: "order_custom_items", Type: field.TypeInt, Nullable: true},
-		{Name: "order_custom_item_master_custom_item", Type: field.TypeInt, Nullable: true},
+		{Name: "order_custom_item_master_custom_item", Type: field.TypeInt},
 	}
 	// OrderCustomItemsTable holds the schema information for the "order_custom_items" table.
 	OrderCustomItemsTable = &schema.Table{
@@ -89,7 +89,7 @@ var (
 				Symbol:     "order_custom_items_custom_items_master_custom_item",
 				Columns:    []*schema.Column{OrderCustomItemsColumns[3]},
 				RefColumns: []*schema.Column{CustomItemsColumns[0]},
-				OnDelete:   schema.SetNull,
+				OnDelete:   schema.NoAction,
 			},
 		},
 	}
@@ -98,7 +98,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "quantity", Type: field.TypeInt},
 		{Name: "order_items", Type: field.TypeInt, Nullable: true},
-		{Name: "order_item_item", Type: field.TypeInt, Nullable: true},
+		{Name: "order_item_item", Type: field.TypeInt},
 	}
 	// OrderItemsTable holds the schema information for the "order_items" table.
 	OrderItemsTable = &schema.Table{
@@ -116,7 +116,7 @@ var (
 				Symbol:     "order_items_items_item",
 				Columns:    []*schema.Column{OrderItemsColumns[3]},
 				RefColumns: []*schema.Column{ItemsColumns[0]},
-				OnDelete:   schema.SetNull,
+				OnDelete:   schema.NoAction,
 			},
 		},
 	}
@@ -124,7 +124,7 @@ var (
 	SelectedCustomItemsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "order_custom_item_selected_custom_items", Type: field.TypeInt, Nullable: true},
-		{Name: "selected_custom_item_custom_item", Type: field.TypeInt, Nullable: true},
+		{Name: "selected_custom_item_custom_item", Type: field.TypeInt},
 	}
 	// SelectedCustomItemsTable holds the schema information for the "selected_custom_items" table.
 	SelectedCustomItemsTable = &schema.Table{
@@ -142,7 +142,7 @@ var (
 				Symbol:     "selected_custom_items_custom_items_custom_item",
 				Columns:    []*schema.Column{SelectedCustomItemsColumns[2]},
 				RefColumns: []*schema.Column{CustomItemsColumns[0]},
-				OnDelete:   schema.SetNull,
+				OnDelete:   schema.NoAction,
 			},
 		},
 	}

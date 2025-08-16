@@ -10,8 +10,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/codecrafter404/bubble/ent/item"
-	"github.com/codecrafter404/bubble/ent/order"
 	"github.com/codecrafter404/bubble/ent/orderitem"
 	"github.com/codecrafter404/bubble/ent/predicate"
 )
@@ -29,80 +27,9 @@ func (_u *OrderItemUpdate) Where(ps ...predicate.OrderItem) *OrderItemUpdate {
 	return _u
 }
 
-// SetQuantity sets the "quantity" field.
-func (_u *OrderItemUpdate) SetQuantity(v int) *OrderItemUpdate {
-	_u.mutation.ResetQuantity()
-	_u.mutation.SetQuantity(v)
-	return _u
-}
-
-// SetNillableQuantity sets the "quantity" field if the given value is not nil.
-func (_u *OrderItemUpdate) SetNillableQuantity(v *int) *OrderItemUpdate {
-	if v != nil {
-		_u.SetQuantity(*v)
-	}
-	return _u
-}
-
-// AddQuantity adds value to the "quantity" field.
-func (_u *OrderItemUpdate) AddQuantity(v int) *OrderItemUpdate {
-	_u.mutation.AddQuantity(v)
-	return _u
-}
-
-// SetItemID sets the "item" edge to the Item entity by ID.
-func (_u *OrderItemUpdate) SetItemID(id int) *OrderItemUpdate {
-	_u.mutation.SetItemID(id)
-	return _u
-}
-
-// SetNillableItemID sets the "item" edge to the Item entity by ID if the given value is not nil.
-func (_u *OrderItemUpdate) SetNillableItemID(id *int) *OrderItemUpdate {
-	if id != nil {
-		_u = _u.SetItemID(*id)
-	}
-	return _u
-}
-
-// SetItem sets the "item" edge to the Item entity.
-func (_u *OrderItemUpdate) SetItem(v *Item) *OrderItemUpdate {
-	return _u.SetItemID(v.ID)
-}
-
-// SetOrderID sets the "order" edge to the Order entity by ID.
-func (_u *OrderItemUpdate) SetOrderID(id int) *OrderItemUpdate {
-	_u.mutation.SetOrderID(id)
-	return _u
-}
-
-// SetNillableOrderID sets the "order" edge to the Order entity by ID if the given value is not nil.
-func (_u *OrderItemUpdate) SetNillableOrderID(id *int) *OrderItemUpdate {
-	if id != nil {
-		_u = _u.SetOrderID(*id)
-	}
-	return _u
-}
-
-// SetOrder sets the "order" edge to the Order entity.
-func (_u *OrderItemUpdate) SetOrder(v *Order) *OrderItemUpdate {
-	return _u.SetOrderID(v.ID)
-}
-
 // Mutation returns the OrderItemMutation object of the builder.
 func (_u *OrderItemUpdate) Mutation() *OrderItemMutation {
 	return _u.mutation
-}
-
-// ClearItem clears the "item" edge to the Item entity.
-func (_u *OrderItemUpdate) ClearItem() *OrderItemUpdate {
-	_u.mutation.ClearItem()
-	return _u
-}
-
-// ClearOrder clears the "order" edge to the Order entity.
-func (_u *OrderItemUpdate) ClearOrder() *OrderItemUpdate {
-	_u.mutation.ClearOrder()
-	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -132,7 +59,18 @@ func (_u *OrderItemUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *OrderItemUpdate) check() error {
+	if _u.mutation.ItemCleared() && len(_u.mutation.ItemIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "OrderItem.item"`)
+	}
+	return nil
+}
+
 func (_u *OrderItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(orderitem.Table, orderitem.Columns, sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -140,70 +78,6 @@ func (_u *OrderItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := _u.mutation.Quantity(); ok {
-		_spec.SetField(orderitem.FieldQuantity, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedQuantity(); ok {
-		_spec.AddField(orderitem.FieldQuantity, field.TypeInt, value)
-	}
-	if _u.mutation.ItemCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   orderitem.ItemTable,
-			Columns: []string{orderitem.ItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(item.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ItemIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   orderitem.ItemTable,
-			Columns: []string{orderitem.ItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(item.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.OrderCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   orderitem.OrderTable,
-			Columns: []string{orderitem.OrderColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.OrderIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   orderitem.OrderTable,
-			Columns: []string{orderitem.OrderColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -225,80 +99,9 @@ type OrderItemUpdateOne struct {
 	mutation *OrderItemMutation
 }
 
-// SetQuantity sets the "quantity" field.
-func (_u *OrderItemUpdateOne) SetQuantity(v int) *OrderItemUpdateOne {
-	_u.mutation.ResetQuantity()
-	_u.mutation.SetQuantity(v)
-	return _u
-}
-
-// SetNillableQuantity sets the "quantity" field if the given value is not nil.
-func (_u *OrderItemUpdateOne) SetNillableQuantity(v *int) *OrderItemUpdateOne {
-	if v != nil {
-		_u.SetQuantity(*v)
-	}
-	return _u
-}
-
-// AddQuantity adds value to the "quantity" field.
-func (_u *OrderItemUpdateOne) AddQuantity(v int) *OrderItemUpdateOne {
-	_u.mutation.AddQuantity(v)
-	return _u
-}
-
-// SetItemID sets the "item" edge to the Item entity by ID.
-func (_u *OrderItemUpdateOne) SetItemID(id int) *OrderItemUpdateOne {
-	_u.mutation.SetItemID(id)
-	return _u
-}
-
-// SetNillableItemID sets the "item" edge to the Item entity by ID if the given value is not nil.
-func (_u *OrderItemUpdateOne) SetNillableItemID(id *int) *OrderItemUpdateOne {
-	if id != nil {
-		_u = _u.SetItemID(*id)
-	}
-	return _u
-}
-
-// SetItem sets the "item" edge to the Item entity.
-func (_u *OrderItemUpdateOne) SetItem(v *Item) *OrderItemUpdateOne {
-	return _u.SetItemID(v.ID)
-}
-
-// SetOrderID sets the "order" edge to the Order entity by ID.
-func (_u *OrderItemUpdateOne) SetOrderID(id int) *OrderItemUpdateOne {
-	_u.mutation.SetOrderID(id)
-	return _u
-}
-
-// SetNillableOrderID sets the "order" edge to the Order entity by ID if the given value is not nil.
-func (_u *OrderItemUpdateOne) SetNillableOrderID(id *int) *OrderItemUpdateOne {
-	if id != nil {
-		_u = _u.SetOrderID(*id)
-	}
-	return _u
-}
-
-// SetOrder sets the "order" edge to the Order entity.
-func (_u *OrderItemUpdateOne) SetOrder(v *Order) *OrderItemUpdateOne {
-	return _u.SetOrderID(v.ID)
-}
-
 // Mutation returns the OrderItemMutation object of the builder.
 func (_u *OrderItemUpdateOne) Mutation() *OrderItemMutation {
 	return _u.mutation
-}
-
-// ClearItem clears the "item" edge to the Item entity.
-func (_u *OrderItemUpdateOne) ClearItem() *OrderItemUpdateOne {
-	_u.mutation.ClearItem()
-	return _u
-}
-
-// ClearOrder clears the "order" edge to the Order entity.
-func (_u *OrderItemUpdateOne) ClearOrder() *OrderItemUpdateOne {
-	_u.mutation.ClearOrder()
-	return _u
 }
 
 // Where appends a list predicates to the OrderItemUpdate builder.
@@ -341,7 +144,18 @@ func (_u *OrderItemUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *OrderItemUpdateOne) check() error {
+	if _u.mutation.ItemCleared() && len(_u.mutation.ItemIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "OrderItem.item"`)
+	}
+	return nil
+}
+
 func (_u *OrderItemUpdateOne) sqlSave(ctx context.Context) (_node *OrderItem, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(orderitem.Table, orderitem.Columns, sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -366,70 +180,6 @@ func (_u *OrderItemUpdateOne) sqlSave(ctx context.Context) (_node *OrderItem, er
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := _u.mutation.Quantity(); ok {
-		_spec.SetField(orderitem.FieldQuantity, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedQuantity(); ok {
-		_spec.AddField(orderitem.FieldQuantity, field.TypeInt, value)
-	}
-	if _u.mutation.ItemCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   orderitem.ItemTable,
-			Columns: []string{orderitem.ItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(item.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ItemIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   orderitem.ItemTable,
-			Columns: []string{orderitem.ItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(item.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.OrderCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   orderitem.OrderTable,
-			Columns: []string{orderitem.OrderColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.OrderIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   orderitem.OrderTable,
-			Columns: []string{orderitem.OrderColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &OrderItem{config: _u.config}
 	_spec.Assign = _node.assignValues

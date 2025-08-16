@@ -6,14 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/codecrafter404/bubble/ent/order"
-	"github.com/codecrafter404/bubble/ent/ordercustomitem"
-	"github.com/codecrafter404/bubble/ent/orderitem"
 	"github.com/codecrafter404/bubble/ent/predicate"
 )
 
@@ -27,34 +24,6 @@ type OrderUpdate struct {
 // Where appends a list predicates to the OrderUpdate builder.
 func (_u *OrderUpdate) Where(ps ...predicate.Order) *OrderUpdate {
 	_u.mutation.Where(ps...)
-	return _u
-}
-
-// SetSubmitted sets the "submitted" field.
-func (_u *OrderUpdate) SetSubmitted(v time.Time) *OrderUpdate {
-	_u.mutation.SetSubmitted(v)
-	return _u
-}
-
-// SetNillableSubmitted sets the "submitted" field if the given value is not nil.
-func (_u *OrderUpdate) SetNillableSubmitted(v *time.Time) *OrderUpdate {
-	if v != nil {
-		_u.SetSubmitted(*v)
-	}
-	return _u
-}
-
-// SetIdentifier sets the "identifier" field.
-func (_u *OrderUpdate) SetIdentifier(v string) *OrderUpdate {
-	_u.mutation.SetIdentifier(v)
-	return _u
-}
-
-// SetNillableIdentifier sets the "identifier" field if the given value is not nil.
-func (_u *OrderUpdate) SetNillableIdentifier(v *string) *OrderUpdate {
-	if v != nil {
-		_u.SetIdentifier(*v)
-	}
 	return _u
 }
 
@@ -72,102 +41,9 @@ func (_u *OrderUpdate) SetNillableState(v *order.State) *OrderUpdate {
 	return _u
 }
 
-// SetTotal sets the "total" field.
-func (_u *OrderUpdate) SetTotal(v float64) *OrderUpdate {
-	_u.mutation.ResetTotal()
-	_u.mutation.SetTotal(v)
-	return _u
-}
-
-// SetNillableTotal sets the "total" field if the given value is not nil.
-func (_u *OrderUpdate) SetNillableTotal(v *float64) *OrderUpdate {
-	if v != nil {
-		_u.SetTotal(*v)
-	}
-	return _u
-}
-
-// AddTotal adds value to the "total" field.
-func (_u *OrderUpdate) AddTotal(v float64) *OrderUpdate {
-	_u.mutation.AddTotal(v)
-	return _u
-}
-
-// AddItemIDs adds the "items" edge to the OrderItem entity by IDs.
-func (_u *OrderUpdate) AddItemIDs(ids ...int) *OrderUpdate {
-	_u.mutation.AddItemIDs(ids...)
-	return _u
-}
-
-// AddItems adds the "items" edges to the OrderItem entity.
-func (_u *OrderUpdate) AddItems(v ...*OrderItem) *OrderUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddItemIDs(ids...)
-}
-
-// AddCustomItemIDs adds the "custom_items" edge to the OrderCustomItem entity by IDs.
-func (_u *OrderUpdate) AddCustomItemIDs(ids ...int) *OrderUpdate {
-	_u.mutation.AddCustomItemIDs(ids...)
-	return _u
-}
-
-// AddCustomItems adds the "custom_items" edges to the OrderCustomItem entity.
-func (_u *OrderUpdate) AddCustomItems(v ...*OrderCustomItem) *OrderUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddCustomItemIDs(ids...)
-}
-
 // Mutation returns the OrderMutation object of the builder.
 func (_u *OrderUpdate) Mutation() *OrderMutation {
 	return _u.mutation
-}
-
-// ClearItems clears all "items" edges to the OrderItem entity.
-func (_u *OrderUpdate) ClearItems() *OrderUpdate {
-	_u.mutation.ClearItems()
-	return _u
-}
-
-// RemoveItemIDs removes the "items" edge to OrderItem entities by IDs.
-func (_u *OrderUpdate) RemoveItemIDs(ids ...int) *OrderUpdate {
-	_u.mutation.RemoveItemIDs(ids...)
-	return _u
-}
-
-// RemoveItems removes "items" edges to OrderItem entities.
-func (_u *OrderUpdate) RemoveItems(v ...*OrderItem) *OrderUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveItemIDs(ids...)
-}
-
-// ClearCustomItems clears all "custom_items" edges to the OrderCustomItem entity.
-func (_u *OrderUpdate) ClearCustomItems() *OrderUpdate {
-	_u.mutation.ClearCustomItems()
-	return _u
-}
-
-// RemoveCustomItemIDs removes the "custom_items" edge to OrderCustomItem entities by IDs.
-func (_u *OrderUpdate) RemoveCustomItemIDs(ids ...int) *OrderUpdate {
-	_u.mutation.RemoveCustomItemIDs(ids...)
-	return _u
-}
-
-// RemoveCustomItems removes "custom_items" edges to OrderCustomItem entities.
-func (_u *OrderUpdate) RemoveCustomItems(v ...*OrderCustomItem) *OrderUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveCustomItemIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -219,110 +95,8 @@ func (_u *OrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.Submitted(); ok {
-		_spec.SetField(order.FieldSubmitted, field.TypeTime, value)
-	}
-	if value, ok := _u.mutation.Identifier(); ok {
-		_spec.SetField(order.FieldIdentifier, field.TypeString, value)
-	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(order.FieldState, field.TypeEnum, value)
-	}
-	if value, ok := _u.mutation.Total(); ok {
-		_spec.SetField(order.FieldTotal, field.TypeFloat64, value)
-	}
-	if value, ok := _u.mutation.AddedTotal(); ok {
-		_spec.AddField(order.FieldTotal, field.TypeFloat64, value)
-	}
-	if _u.mutation.ItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ItemsTable,
-			Columns: []string{order.ItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedItemsIDs(); len(nodes) > 0 && !_u.mutation.ItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ItemsTable,
-			Columns: []string{order.ItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ItemsTable,
-			Columns: []string{order.ItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.CustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.CustomItemsTable,
-			Columns: []string{order.CustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedCustomItemsIDs(); len(nodes) > 0 && !_u.mutation.CustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.CustomItemsTable,
-			Columns: []string{order.CustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.CustomItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.CustomItemsTable,
-			Columns: []string{order.CustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -344,34 +118,6 @@ type OrderUpdateOne struct {
 	mutation *OrderMutation
 }
 
-// SetSubmitted sets the "submitted" field.
-func (_u *OrderUpdateOne) SetSubmitted(v time.Time) *OrderUpdateOne {
-	_u.mutation.SetSubmitted(v)
-	return _u
-}
-
-// SetNillableSubmitted sets the "submitted" field if the given value is not nil.
-func (_u *OrderUpdateOne) SetNillableSubmitted(v *time.Time) *OrderUpdateOne {
-	if v != nil {
-		_u.SetSubmitted(*v)
-	}
-	return _u
-}
-
-// SetIdentifier sets the "identifier" field.
-func (_u *OrderUpdateOne) SetIdentifier(v string) *OrderUpdateOne {
-	_u.mutation.SetIdentifier(v)
-	return _u
-}
-
-// SetNillableIdentifier sets the "identifier" field if the given value is not nil.
-func (_u *OrderUpdateOne) SetNillableIdentifier(v *string) *OrderUpdateOne {
-	if v != nil {
-		_u.SetIdentifier(*v)
-	}
-	return _u
-}
-
 // SetState sets the "state" field.
 func (_u *OrderUpdateOne) SetState(v order.State) *OrderUpdateOne {
 	_u.mutation.SetState(v)
@@ -386,102 +132,9 @@ func (_u *OrderUpdateOne) SetNillableState(v *order.State) *OrderUpdateOne {
 	return _u
 }
 
-// SetTotal sets the "total" field.
-func (_u *OrderUpdateOne) SetTotal(v float64) *OrderUpdateOne {
-	_u.mutation.ResetTotal()
-	_u.mutation.SetTotal(v)
-	return _u
-}
-
-// SetNillableTotal sets the "total" field if the given value is not nil.
-func (_u *OrderUpdateOne) SetNillableTotal(v *float64) *OrderUpdateOne {
-	if v != nil {
-		_u.SetTotal(*v)
-	}
-	return _u
-}
-
-// AddTotal adds value to the "total" field.
-func (_u *OrderUpdateOne) AddTotal(v float64) *OrderUpdateOne {
-	_u.mutation.AddTotal(v)
-	return _u
-}
-
-// AddItemIDs adds the "items" edge to the OrderItem entity by IDs.
-func (_u *OrderUpdateOne) AddItemIDs(ids ...int) *OrderUpdateOne {
-	_u.mutation.AddItemIDs(ids...)
-	return _u
-}
-
-// AddItems adds the "items" edges to the OrderItem entity.
-func (_u *OrderUpdateOne) AddItems(v ...*OrderItem) *OrderUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddItemIDs(ids...)
-}
-
-// AddCustomItemIDs adds the "custom_items" edge to the OrderCustomItem entity by IDs.
-func (_u *OrderUpdateOne) AddCustomItemIDs(ids ...int) *OrderUpdateOne {
-	_u.mutation.AddCustomItemIDs(ids...)
-	return _u
-}
-
-// AddCustomItems adds the "custom_items" edges to the OrderCustomItem entity.
-func (_u *OrderUpdateOne) AddCustomItems(v ...*OrderCustomItem) *OrderUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddCustomItemIDs(ids...)
-}
-
 // Mutation returns the OrderMutation object of the builder.
 func (_u *OrderUpdateOne) Mutation() *OrderMutation {
 	return _u.mutation
-}
-
-// ClearItems clears all "items" edges to the OrderItem entity.
-func (_u *OrderUpdateOne) ClearItems() *OrderUpdateOne {
-	_u.mutation.ClearItems()
-	return _u
-}
-
-// RemoveItemIDs removes the "items" edge to OrderItem entities by IDs.
-func (_u *OrderUpdateOne) RemoveItemIDs(ids ...int) *OrderUpdateOne {
-	_u.mutation.RemoveItemIDs(ids...)
-	return _u
-}
-
-// RemoveItems removes "items" edges to OrderItem entities.
-func (_u *OrderUpdateOne) RemoveItems(v ...*OrderItem) *OrderUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveItemIDs(ids...)
-}
-
-// ClearCustomItems clears all "custom_items" edges to the OrderCustomItem entity.
-func (_u *OrderUpdateOne) ClearCustomItems() *OrderUpdateOne {
-	_u.mutation.ClearCustomItems()
-	return _u
-}
-
-// RemoveCustomItemIDs removes the "custom_items" edge to OrderCustomItem entities by IDs.
-func (_u *OrderUpdateOne) RemoveCustomItemIDs(ids ...int) *OrderUpdateOne {
-	_u.mutation.RemoveCustomItemIDs(ids...)
-	return _u
-}
-
-// RemoveCustomItems removes "custom_items" edges to OrderCustomItem entities.
-func (_u *OrderUpdateOne) RemoveCustomItems(v ...*OrderCustomItem) *OrderUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveCustomItemIDs(ids...)
 }
 
 // Where appends a list predicates to the OrderUpdate builder.
@@ -563,110 +216,8 @@ func (_u *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error)
 			}
 		}
 	}
-	if value, ok := _u.mutation.Submitted(); ok {
-		_spec.SetField(order.FieldSubmitted, field.TypeTime, value)
-	}
-	if value, ok := _u.mutation.Identifier(); ok {
-		_spec.SetField(order.FieldIdentifier, field.TypeString, value)
-	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(order.FieldState, field.TypeEnum, value)
-	}
-	if value, ok := _u.mutation.Total(); ok {
-		_spec.SetField(order.FieldTotal, field.TypeFloat64, value)
-	}
-	if value, ok := _u.mutation.AddedTotal(); ok {
-		_spec.AddField(order.FieldTotal, field.TypeFloat64, value)
-	}
-	if _u.mutation.ItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ItemsTable,
-			Columns: []string{order.ItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedItemsIDs(); len(nodes) > 0 && !_u.mutation.ItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ItemsTable,
-			Columns: []string{order.ItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.ItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ItemsTable,
-			Columns: []string{order.ItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(orderitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.CustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.CustomItemsTable,
-			Columns: []string{order.CustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedCustomItemsIDs(); len(nodes) > 0 && !_u.mutation.CustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.CustomItemsTable,
-			Columns: []string{order.CustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.CustomItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.CustomItemsTable,
-			Columns: []string{order.CustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Order{config: _u.config}
 	_spec.Assign = _node.assignValues

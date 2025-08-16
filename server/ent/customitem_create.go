@@ -26,9 +26,9 @@ func (_c *CustomItemCreate) SetName(v string) *CustomItemCreate {
 	return _c
 }
 
-// SetExclusive sets the "exclusive" field.
-func (_c *CustomItemCreate) SetExclusive(v bool) *CustomItemCreate {
-	_c.mutation.SetExclusive(v)
+// SetAllowOnlyOne sets the "allow_only_one" field.
+func (_c *CustomItemCreate) SetAllowOnlyOne(v bool) *CustomItemCreate {
+	_c.mutation.SetAllowOnlyOne(v)
 	return _c
 }
 
@@ -98,8 +98,8 @@ func (_c *CustomItemCreate) check() error {
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "CustomItem.name"`)}
 	}
-	if _, ok := _c.mutation.Exclusive(); !ok {
-		return &ValidationError{Name: "exclusive", err: errors.New(`ent: missing required field "CustomItem.exclusive"`)}
+	if _, ok := _c.mutation.AllowOnlyOne(); !ok {
+		return &ValidationError{Name: "allow_only_one", err: errors.New(`ent: missing required field "CustomItem.allow_only_one"`)}
 	}
 	if len(_c.mutation.VariantsIDs()) == 0 {
 		return &ValidationError{Name: "variants", err: errors.New(`ent: missing required edge "CustomItem.variants"`)}
@@ -134,9 +134,9 @@ func (_c *CustomItemCreate) createSpec() (*CustomItem, *sqlgraph.CreateSpec) {
 		_spec.SetField(customitem.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
-	if value, ok := _c.mutation.Exclusive(); ok {
-		_spec.SetField(customitem.FieldExclusive, field.TypeBool, value)
-		_node.Exclusive = value
+	if value, ok := _c.mutation.AllowOnlyOne(); ok {
+		_spec.SetField(customitem.FieldAllowOnlyOne, field.TypeBool, value)
+		_node.AllowOnlyOne = value
 	}
 	if value, ok := _c.mutation.Prev(); ok {
 		_spec.SetField(customitem.FieldPrev, field.TypeInt, value)

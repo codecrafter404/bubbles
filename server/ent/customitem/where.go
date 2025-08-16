@@ -58,9 +58,9 @@ func Name(v string) predicate.CustomItem {
 	return predicate.CustomItem(sql.FieldEQ(FieldName, v))
 }
 
-// Exclusive applies equality check predicate on the "exclusive" field. It's identical to ExclusiveEQ.
-func Exclusive(v bool) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldEQ(FieldExclusive, v))
+// AllowOnlyOne applies equality check predicate on the "allow_only_one" field. It's identical to AllowOnlyOneEQ.
+func AllowOnlyOne(v bool) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldEQ(FieldAllowOnlyOne, v))
 }
 
 // Prev applies equality check predicate on the "prev" field. It's identical to PrevEQ.
@@ -133,14 +133,14 @@ func NameContainsFold(v string) predicate.CustomItem {
 	return predicate.CustomItem(sql.FieldContainsFold(FieldName, v))
 }
 
-// ExclusiveEQ applies the EQ predicate on the "exclusive" field.
-func ExclusiveEQ(v bool) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldEQ(FieldExclusive, v))
+// AllowOnlyOneEQ applies the EQ predicate on the "allow_only_one" field.
+func AllowOnlyOneEQ(v bool) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldEQ(FieldAllowOnlyOne, v))
 }
 
-// ExclusiveNEQ applies the NEQ predicate on the "exclusive" field.
-func ExclusiveNEQ(v bool) predicate.CustomItem {
-	return predicate.CustomItem(sql.FieldNEQ(FieldExclusive, v))
+// AllowOnlyOneNEQ applies the NEQ predicate on the "allow_only_one" field.
+func AllowOnlyOneNEQ(v bool) predicate.CustomItem {
+	return predicate.CustomItem(sql.FieldNEQ(FieldAllowOnlyOne, v))
 }
 
 // PrevEQ applies the EQ predicate on the "prev" field.

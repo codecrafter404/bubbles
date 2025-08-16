@@ -5,6 +5,7 @@ package ent
 import (
 	"context"
 
+	"entgo.io/contrib/entgql"
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/codecrafter404/bubble/ent/customitem"
 	"github.com/codecrafter404/bubble/ent/item"
@@ -52,10 +53,10 @@ func (_q *CustomItemQuery) collectField(ctx context.Context, oneNode bool, opCtx
 				selectedFields = append(selectedFields, customitem.FieldName)
 				fieldSeen[customitem.FieldName] = struct{}{}
 			}
-		case "exclusive":
-			if _, ok := fieldSeen[customitem.FieldExclusive]; !ok {
-				selectedFields = append(selectedFields, customitem.FieldExclusive)
-				fieldSeen[customitem.FieldExclusive] = struct{}{}
+		case "allowOnlyOne":
+			if _, ok := fieldSeen[customitem.FieldAllowOnlyOne]; !ok {
+				selectedFields = append(selectedFields, customitem.FieldAllowOnlyOne)
+				fieldSeen[customitem.FieldAllowOnlyOne] = struct{}{}
 			}
 		case "prev":
 			if _, ok := fieldSeen[customitem.FieldPrev]; !ok {
@@ -285,6 +286,28 @@ func newOrderPaginateArgs(rv map[string]any) *orderPaginateArgs {
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[orderByField]; ok {
+		switch v := v.(type) {
+		case map[string]any:
+			var (
+				err1, err2 error
+				order      = &OrderOrder{Field: &OrderOrderField{}, Direction: entgql.OrderDirectionAsc}
+			)
+			if d, ok := v[directionField]; ok {
+				err1 = order.Direction.UnmarshalGQL(d)
+			}
+			if f, ok := v[fieldField]; ok {
+				err2 = order.Field.UnmarshalGQL(f)
+			}
+			if err1 == nil && err2 == nil {
+				args.opts = append(args.opts, WithOrderOrder(order))
+			}
+		case *OrderOrder:
+			if v != nil {
+				args.opts = append(args.opts, WithOrderOrder(v))
+			}
+		}
 	}
 	return args
 }

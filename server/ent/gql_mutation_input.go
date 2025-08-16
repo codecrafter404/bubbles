@@ -2,18 +2,22 @@
 
 package ent
 
+import (
+	"github.com/codecrafter404/bubble/ent/order"
+)
+
 // CreateCustomItemInput represents a mutation input for creating customitems.
 type CreateCustomItemInput struct {
-	Name       string
-	Exclusive  bool
-	Prev       *int
-	VariantIDs []int
+	Name         string
+	AllowOnlyOne bool
+	Prev         *int
+	VariantIDs   []int
 }
 
 // Mutate applies the CreateCustomItemInput on the CustomItemMutation builder.
 func (i *CreateCustomItemInput) Mutate(m *CustomItemMutation) {
 	m.SetName(i.Name)
-	m.SetExclusive(i.Exclusive)
+	m.SetAllowOnlyOne(i.AllowOnlyOne)
 	if v := i.Prev; v != nil {
 		m.SetPrev(*v)
 	}
@@ -31,7 +35,7 @@ func (c *CustomItemCreate) SetInput(i CreateCustomItemInput) *CustomItemCreate {
 // UpdateCustomItemInput represents a mutation input for updating customitems.
 type UpdateCustomItemInput struct {
 	Name             *string
-	Exclusive        *bool
+	AllowOnlyOne     *bool
 	AddVariantIDs    []int
 	RemoveVariantIDs []int
 }
@@ -41,8 +45,8 @@ func (i *UpdateCustomItemInput) Mutate(m *CustomItemMutation) {
 	if v := i.Name; v != nil {
 		m.SetName(*v)
 	}
-	if v := i.Exclusive; v != nil {
-		m.SetExclusive(*v)
+	if v := i.AllowOnlyOne; v != nil {
+		m.SetAllowOnlyOne(*v)
 	}
 	if v := i.AddVariantIDs; len(v) > 0 {
 		m.AddVariantIDs(v...)
@@ -124,6 +128,116 @@ func (c *ItemUpdate) SetInput(i UpdateItemInput) *ItemUpdate {
 
 // SetInput applies the change-set in the UpdateItemInput on the ItemUpdateOne builder.
 func (c *ItemUpdateOne) SetInput(i UpdateItemInput) *ItemUpdateOne {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// CreateOrderInput represents a mutation input for creating orders.
+type CreateOrderInput struct {
+	State         *order.State
+	ItemIDs       []int
+	CustomItemIDs []int
+}
+
+// Mutate applies the CreateOrderInput on the OrderMutation builder.
+func (i *CreateOrderInput) Mutate(m *OrderMutation) {
+	if v := i.State; v != nil {
+		m.SetState(*v)
+	}
+	if v := i.ItemIDs; len(v) > 0 {
+		m.AddItemIDs(v...)
+	}
+	if v := i.CustomItemIDs; len(v) > 0 {
+		m.AddCustomItemIDs(v...)
+	}
+}
+
+// SetInput applies the change-set in the CreateOrderInput on the OrderCreate builder.
+func (c *OrderCreate) SetInput(i CreateOrderInput) *OrderCreate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// UpdateOrderInput represents a mutation input for updating orders.
+type UpdateOrderInput struct {
+	State *order.State
+}
+
+// Mutate applies the UpdateOrderInput on the OrderMutation builder.
+func (i *UpdateOrderInput) Mutate(m *OrderMutation) {
+	if v := i.State; v != nil {
+		m.SetState(*v)
+	}
+}
+
+// SetInput applies the change-set in the UpdateOrderInput on the OrderUpdate builder.
+func (c *OrderUpdate) SetInput(i UpdateOrderInput) *OrderUpdate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// SetInput applies the change-set in the UpdateOrderInput on the OrderUpdateOne builder.
+func (c *OrderUpdateOne) SetInput(i UpdateOrderInput) *OrderUpdateOne {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// CreateOrderCustomItemInput represents a mutation input for creating ordercustomitems.
+type CreateOrderCustomItemInput struct {
+	Quantity              int
+	SelectedCustomItemIDs []int
+	MasterCustomItemID    int
+}
+
+// Mutate applies the CreateOrderCustomItemInput on the OrderCustomItemMutation builder.
+func (i *CreateOrderCustomItemInput) Mutate(m *OrderCustomItemMutation) {
+	m.SetQuantity(i.Quantity)
+	if v := i.SelectedCustomItemIDs; len(v) > 0 {
+		m.AddSelectedCustomItemIDs(v...)
+	}
+	m.SetMasterCustomItemID(i.MasterCustomItemID)
+}
+
+// SetInput applies the change-set in the CreateOrderCustomItemInput on the OrderCustomItemCreate builder.
+func (c *OrderCustomItemCreate) SetInput(i CreateOrderCustomItemInput) *OrderCustomItemCreate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// CreateOrderItemInput represents a mutation input for creating orderitems.
+type CreateOrderItemInput struct {
+	Quantity int
+	ItemID   int
+}
+
+// Mutate applies the CreateOrderItemInput on the OrderItemMutation builder.
+func (i *CreateOrderItemInput) Mutate(m *OrderItemMutation) {
+	m.SetQuantity(i.Quantity)
+	m.SetItemID(i.ItemID)
+}
+
+// SetInput applies the change-set in the CreateOrderItemInput on the OrderItemCreate builder.
+func (c *OrderItemCreate) SetInput(i CreateOrderItemInput) *OrderItemCreate {
+	i.Mutate(c.Mutation())
+	return c
+}
+
+// CreateSelectedCustomItemInput represents a mutation input for creating selectedcustomitems.
+type CreateSelectedCustomItemInput struct {
+	SelectedVariantIDs []int
+	CustomItemID       int
+}
+
+// Mutate applies the CreateSelectedCustomItemInput on the SelectedCustomItemMutation builder.
+func (i *CreateSelectedCustomItemInput) Mutate(m *SelectedCustomItemMutation) {
+	if v := i.SelectedVariantIDs; len(v) > 0 {
+		m.AddSelectedVariantIDs(v...)
+	}
+	m.SetCustomItemID(i.CustomItemID)
+}
+
+// SetInput applies the change-set in the CreateSelectedCustomItemInput on the SelectedCustomItemCreate builder.
+func (c *SelectedCustomItemCreate) SetInput(i CreateSelectedCustomItemInput) *SelectedCustomItemCreate {
 	i.Mutate(c.Mutation())
 	return c
 }

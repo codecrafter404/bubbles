@@ -49,14 +49,6 @@ func (_c *OrderCustomItemCreate) SetMasterCustomItemID(id int) *OrderCustomItemC
 	return _c
 }
 
-// SetNillableMasterCustomItemID sets the "master_custom_item" edge to the CustomItem entity by ID if the given value is not nil.
-func (_c *OrderCustomItemCreate) SetNillableMasterCustomItemID(id *int) *OrderCustomItemCreate {
-	if id != nil {
-		_c = _c.SetMasterCustomItemID(*id)
-	}
-	return _c
-}
-
 // SetMasterCustomItem sets the "master_custom_item" edge to the CustomItem entity.
 func (_c *OrderCustomItemCreate) SetMasterCustomItem(v *CustomItem) *OrderCustomItemCreate {
 	return _c.SetMasterCustomItemID(v.ID)
@@ -117,6 +109,9 @@ func (_c *OrderCustomItemCreate) ExecX(ctx context.Context) {
 func (_c *OrderCustomItemCreate) check() error {
 	if _, ok := _c.mutation.Quantity(); !ok {
 		return &ValidationError{Name: "quantity", err: errors.New(`ent: missing required field "OrderCustomItem.quantity"`)}
+	}
+	if len(_c.mutation.MasterCustomItemIDs()) == 0 {
+		return &ValidationError{Name: "master_custom_item", err: errors.New(`ent: missing required edge "OrderCustomItem.master_custom_item"`)}
 	}
 	return nil
 }

@@ -44,7 +44,7 @@ type CustomItemMutation struct {
 	typ             string
 	id              *int
 	name            *string
-	exclusive       *bool
+	allow_only_one  *bool
 	prev            *int
 	addprev         *int
 	clearedFields   map[string]struct{}
@@ -190,40 +190,40 @@ func (m *CustomItemMutation) ResetName() {
 	m.name = nil
 }
 
-// SetExclusive sets the "exclusive" field.
-func (m *CustomItemMutation) SetExclusive(b bool) {
-	m.exclusive = &b
+// SetAllowOnlyOne sets the "allow_only_one" field.
+func (m *CustomItemMutation) SetAllowOnlyOne(b bool) {
+	m.allow_only_one = &b
 }
 
-// Exclusive returns the value of the "exclusive" field in the mutation.
-func (m *CustomItemMutation) Exclusive() (r bool, exists bool) {
-	v := m.exclusive
+// AllowOnlyOne returns the value of the "allow_only_one" field in the mutation.
+func (m *CustomItemMutation) AllowOnlyOne() (r bool, exists bool) {
+	v := m.allow_only_one
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldExclusive returns the old "exclusive" field's value of the CustomItem entity.
+// OldAllowOnlyOne returns the old "allow_only_one" field's value of the CustomItem entity.
 // If the CustomItem object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CustomItemMutation) OldExclusive(ctx context.Context) (v bool, err error) {
+func (m *CustomItemMutation) OldAllowOnlyOne(ctx context.Context) (v bool, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldExclusive is only allowed on UpdateOne operations")
+		return v, errors.New("OldAllowOnlyOne is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldExclusive requires an ID field in the mutation")
+		return v, errors.New("OldAllowOnlyOne requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldExclusive: %w", err)
+		return v, fmt.Errorf("querying old value for OldAllowOnlyOne: %w", err)
 	}
-	return oldValue.Exclusive, nil
+	return oldValue.AllowOnlyOne, nil
 }
 
-// ResetExclusive resets all changes to the "exclusive" field.
-func (m *CustomItemMutation) ResetExclusive() {
-	m.exclusive = nil
+// ResetAllowOnlyOne resets all changes to the "allow_only_one" field.
+func (m *CustomItemMutation) ResetAllowOnlyOne() {
+	m.allow_only_one = nil
 }
 
 // SetPrev sets the "prev" field.
@@ -388,8 +388,8 @@ func (m *CustomItemMutation) Fields() []string {
 	if m.name != nil {
 		fields = append(fields, customitem.FieldName)
 	}
-	if m.exclusive != nil {
-		fields = append(fields, customitem.FieldExclusive)
+	if m.allow_only_one != nil {
+		fields = append(fields, customitem.FieldAllowOnlyOne)
 	}
 	if m.prev != nil {
 		fields = append(fields, customitem.FieldPrev)
@@ -404,8 +404,8 @@ func (m *CustomItemMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case customitem.FieldName:
 		return m.Name()
-	case customitem.FieldExclusive:
-		return m.Exclusive()
+	case customitem.FieldAllowOnlyOne:
+		return m.AllowOnlyOne()
 	case customitem.FieldPrev:
 		return m.Prev()
 	}
@@ -419,8 +419,8 @@ func (m *CustomItemMutation) OldField(ctx context.Context, name string) (ent.Val
 	switch name {
 	case customitem.FieldName:
 		return m.OldName(ctx)
-	case customitem.FieldExclusive:
-		return m.OldExclusive(ctx)
+	case customitem.FieldAllowOnlyOne:
+		return m.OldAllowOnlyOne(ctx)
 	case customitem.FieldPrev:
 		return m.OldPrev(ctx)
 	}
@@ -439,12 +439,12 @@ func (m *CustomItemMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetName(v)
 		return nil
-	case customitem.FieldExclusive:
+	case customitem.FieldAllowOnlyOne:
 		v, ok := value.(bool)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetExclusive(v)
+		m.SetAllowOnlyOne(v)
 		return nil
 	case customitem.FieldPrev:
 		v, ok := value.(int)
@@ -529,8 +529,8 @@ func (m *CustomItemMutation) ResetField(name string) error {
 	case customitem.FieldName:
 		m.ResetName()
 		return nil
-	case customitem.FieldExclusive:
-		m.ResetExclusive()
+	case customitem.FieldAllowOnlyOne:
+		m.ResetAllowOnlyOne()
 		return nil
 	case customitem.FieldPrev:
 		m.ResetPrev()

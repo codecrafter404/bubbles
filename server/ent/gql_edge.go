@@ -61,7 +61,7 @@ func (_m *OrderCustomItem) MasterCustomItem(ctx context.Context) (*CustomItem, e
 	if IsNotLoaded(err) {
 		result, err = _m.QueryMasterCustomItem().Only(ctx)
 	}
-	return result, MaskNotFound(err)
+	return result, err
 }
 
 func (_m *OrderCustomItem) Order(ctx context.Context) (*Order, error) {
@@ -77,7 +77,7 @@ func (_m *OrderItem) Item(ctx context.Context) (*Item, error) {
 	if IsNotLoaded(err) {
 		result, err = _m.QueryItem().Only(ctx)
 	}
-	return result, MaskNotFound(err)
+	return result, err
 }
 
 func (_m *OrderItem) Order(ctx context.Context) (*Order, error) {
@@ -105,5 +105,5 @@ func (_m *SelectedCustomItem) CustomItem(ctx context.Context) (*CustomItem, erro
 	if IsNotLoaded(err) {
 		result, err = _m.QueryCustomItem().Only(ctx)
 	}
-	return result, MaskNotFound(err)
+	return result, err
 }

@@ -18,8 +18,8 @@ type CustomItem struct {
 	ID int `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
-	// if true then one or more variants can be selected at once
-	Exclusive bool `json:"exclusive,omitempty"`
+	// if false then one or more variants can be selected at once
+	AllowOnlyOne bool `json:"allow_only_one,omitempty"`
 	// The id of the previous to selectable custom item
 	Prev *int `json:"prev,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -55,7 +55,7 @@ func (*CustomItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case customitem.FieldExclusive:
+		case customitem.FieldAllowOnlyOne:
 			values[i] = new(sql.NullBool)
 		case customitem.FieldID, customitem.FieldPrev:
 			values[i] = new(sql.NullInt64)
@@ -88,11 +88,11 @@ func (_m *CustomItem) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Name = value.String
 			}
-		case customitem.FieldExclusive:
+		case customitem.FieldAllowOnlyOne:
 			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field exclusive", values[i])
+				return fmt.Errorf("unexpected type %T for field allow_only_one", values[i])
 			} else if value.Valid {
-				_m.Exclusive = value.Bool
+				_m.AllowOnlyOne = value.Bool
 			}
 		case customitem.FieldPrev:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -145,8 +145,8 @@ func (_m *CustomItem) String() string {
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
-	builder.WriteString("exclusive=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Exclusive))
+	builder.WriteString("allow_only_one=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowOnlyOne))
 	builder.WriteString(", ")
 	if v := _m.Prev; v != nil {
 		builder.WriteString("prev=")

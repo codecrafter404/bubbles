@@ -17,7 +17,7 @@ type CustomItem struct {
 func (CustomItem) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name"),
-		field.Bool("exclusive").Comment("if true then one or more variants can be selected at once"),
+		field.Bool("allow_only_one").Comment("if false then one or more variants can be selected at once"),
 		field.Int("prev").Immutable().Optional().Nillable().Comment("The id of the previous to selectable custom item"),
 	}
 }
@@ -31,6 +31,6 @@ func (CustomItem) Edges() []ent.Edge {
 func (CustomItem) Annotations() []schema.Annotation {
 	return []schema.Annotation{
 		entgql.QueryField(),
-		entgql.Mutations(entgql.MutationCreate(), entgql.MutationUpdate()), entgql.QueryField(),
+		entgql.Mutations(entgql.MutationCreate(), entgql.MutationUpdate()),
 	}
 }

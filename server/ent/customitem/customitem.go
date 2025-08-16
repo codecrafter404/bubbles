@@ -14,8 +14,8 @@ const (
 	FieldID = "id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
-	// FieldExclusive holds the string denoting the exclusive field in the database.
-	FieldExclusive = "exclusive"
+	// FieldAllowOnlyOne holds the string denoting the allow_only_one field in the database.
+	FieldAllowOnlyOne = "allow_only_one"
 	// FieldPrev holds the string denoting the prev field in the database.
 	FieldPrev = "prev"
 	// EdgeVariants holds the string denoting the variants edge name in mutations.
@@ -35,7 +35,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldName,
-	FieldExclusive,
+	FieldAllowOnlyOne,
 	FieldPrev,
 }
 
@@ -62,9 +62,9 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
-// ByExclusive orders the results by the exclusive field.
-func ByExclusive(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldExclusive, opts...).ToFunc()
+// ByAllowOnlyOne orders the results by the allow_only_one field.
+func ByAllowOnlyOne(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowOnlyOne, opts...).ToFunc()
 }
 
 // ByPrev orders the results by the prev field.

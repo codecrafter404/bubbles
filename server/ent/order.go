@@ -23,7 +23,7 @@ type Order struct {
 	Identifier string `json:"identifier,omitempty"`
 	// State holds the value of the "state" field.
 	State order.State `json:"state,omitempty"`
-	// on client generated orders total
+	// on server generated orders total
 	Total float64 `json:"total,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the OrderQuery when eager-loading is set.

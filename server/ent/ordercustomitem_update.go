@@ -10,11 +10,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/codecrafter404/bubble/ent/customitem"
 	"github.com/codecrafter404/bubble/ent/order"
 	"github.com/codecrafter404/bubble/ent/ordercustomitem"
 	"github.com/codecrafter404/bubble/ent/predicate"
-	"github.com/codecrafter404/bubble/ent/selectedcustomitem"
 )
 
 // OrderCustomItemUpdate is the builder for updating OrderCustomItem entities.
@@ -51,40 +49,6 @@ func (_u *OrderCustomItemUpdate) AddQuantity(v int) *OrderCustomItemUpdate {
 	return _u
 }
 
-// AddSelectedCustomItemIDs adds the "selected_custom_items" edge to the SelectedCustomItem entity by IDs.
-func (_u *OrderCustomItemUpdate) AddSelectedCustomItemIDs(ids ...int) *OrderCustomItemUpdate {
-	_u.mutation.AddSelectedCustomItemIDs(ids...)
-	return _u
-}
-
-// AddSelectedCustomItems adds the "selected_custom_items" edges to the SelectedCustomItem entity.
-func (_u *OrderCustomItemUpdate) AddSelectedCustomItems(v ...*SelectedCustomItem) *OrderCustomItemUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddSelectedCustomItemIDs(ids...)
-}
-
-// SetMasterCustomItemID sets the "master_custom_item" edge to the CustomItem entity by ID.
-func (_u *OrderCustomItemUpdate) SetMasterCustomItemID(id int) *OrderCustomItemUpdate {
-	_u.mutation.SetMasterCustomItemID(id)
-	return _u
-}
-
-// SetNillableMasterCustomItemID sets the "master_custom_item" edge to the CustomItem entity by ID if the given value is not nil.
-func (_u *OrderCustomItemUpdate) SetNillableMasterCustomItemID(id *int) *OrderCustomItemUpdate {
-	if id != nil {
-		_u = _u.SetMasterCustomItemID(*id)
-	}
-	return _u
-}
-
-// SetMasterCustomItem sets the "master_custom_item" edge to the CustomItem entity.
-func (_u *OrderCustomItemUpdate) SetMasterCustomItem(v *CustomItem) *OrderCustomItemUpdate {
-	return _u.SetMasterCustomItemID(v.ID)
-}
-
 // SetOrderID sets the "order" edge to the Order entity by ID.
 func (_u *OrderCustomItemUpdate) SetOrderID(id int) *OrderCustomItemUpdate {
 	_u.mutation.SetOrderID(id)
@@ -107,33 +71,6 @@ func (_u *OrderCustomItemUpdate) SetOrder(v *Order) *OrderCustomItemUpdate {
 // Mutation returns the OrderCustomItemMutation object of the builder.
 func (_u *OrderCustomItemUpdate) Mutation() *OrderCustomItemMutation {
 	return _u.mutation
-}
-
-// ClearSelectedCustomItems clears all "selected_custom_items" edges to the SelectedCustomItem entity.
-func (_u *OrderCustomItemUpdate) ClearSelectedCustomItems() *OrderCustomItemUpdate {
-	_u.mutation.ClearSelectedCustomItems()
-	return _u
-}
-
-// RemoveSelectedCustomItemIDs removes the "selected_custom_items" edge to SelectedCustomItem entities by IDs.
-func (_u *OrderCustomItemUpdate) RemoveSelectedCustomItemIDs(ids ...int) *OrderCustomItemUpdate {
-	_u.mutation.RemoveSelectedCustomItemIDs(ids...)
-	return _u
-}
-
-// RemoveSelectedCustomItems removes "selected_custom_items" edges to SelectedCustomItem entities.
-func (_u *OrderCustomItemUpdate) RemoveSelectedCustomItems(v ...*SelectedCustomItem) *OrderCustomItemUpdate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveSelectedCustomItemIDs(ids...)
-}
-
-// ClearMasterCustomItem clears the "master_custom_item" edge to the CustomItem entity.
-func (_u *OrderCustomItemUpdate) ClearMasterCustomItem() *OrderCustomItemUpdate {
-	_u.mutation.ClearMasterCustomItem()
-	return _u
 }
 
 // ClearOrder clears the "order" edge to the Order entity.
@@ -169,7 +106,18 @@ func (_u *OrderCustomItemUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *OrderCustomItemUpdate) check() error {
+	if _u.mutation.MasterCustomItemCleared() && len(_u.mutation.MasterCustomItemIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "OrderCustomItem.master_custom_item"`)
+	}
+	return nil
+}
+
 func (_u *OrderCustomItemUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(ordercustomitem.Table, ordercustomitem.Columns, sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -183,80 +131,6 @@ func (_u *OrderCustomItemUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.AddedQuantity(); ok {
 		_spec.AddField(ordercustomitem.FieldQuantity, field.TypeInt, value)
-	}
-	if _u.mutation.SelectedCustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   ordercustomitem.SelectedCustomItemsTable,
-			Columns: []string{ordercustomitem.SelectedCustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(selectedcustomitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedSelectedCustomItemsIDs(); len(nodes) > 0 && !_u.mutation.SelectedCustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   ordercustomitem.SelectedCustomItemsTable,
-			Columns: []string{ordercustomitem.SelectedCustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(selectedcustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.SelectedCustomItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   ordercustomitem.SelectedCustomItemsTable,
-			Columns: []string{ordercustomitem.SelectedCustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(selectedcustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.MasterCustomItemCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   ordercustomitem.MasterCustomItemTable,
-			Columns: []string{ordercustomitem.MasterCustomItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(customitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.MasterCustomItemIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   ordercustomitem.MasterCustomItemTable,
-			Columns: []string{ordercustomitem.MasterCustomItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(customitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.OrderCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -328,40 +202,6 @@ func (_u *OrderCustomItemUpdateOne) AddQuantity(v int) *OrderCustomItemUpdateOne
 	return _u
 }
 
-// AddSelectedCustomItemIDs adds the "selected_custom_items" edge to the SelectedCustomItem entity by IDs.
-func (_u *OrderCustomItemUpdateOne) AddSelectedCustomItemIDs(ids ...int) *OrderCustomItemUpdateOne {
-	_u.mutation.AddSelectedCustomItemIDs(ids...)
-	return _u
-}
-
-// AddSelectedCustomItems adds the "selected_custom_items" edges to the SelectedCustomItem entity.
-func (_u *OrderCustomItemUpdateOne) AddSelectedCustomItems(v ...*SelectedCustomItem) *OrderCustomItemUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddSelectedCustomItemIDs(ids...)
-}
-
-// SetMasterCustomItemID sets the "master_custom_item" edge to the CustomItem entity by ID.
-func (_u *OrderCustomItemUpdateOne) SetMasterCustomItemID(id int) *OrderCustomItemUpdateOne {
-	_u.mutation.SetMasterCustomItemID(id)
-	return _u
-}
-
-// SetNillableMasterCustomItemID sets the "master_custom_item" edge to the CustomItem entity by ID if the given value is not nil.
-func (_u *OrderCustomItemUpdateOne) SetNillableMasterCustomItemID(id *int) *OrderCustomItemUpdateOne {
-	if id != nil {
-		_u = _u.SetMasterCustomItemID(*id)
-	}
-	return _u
-}
-
-// SetMasterCustomItem sets the "master_custom_item" edge to the CustomItem entity.
-func (_u *OrderCustomItemUpdateOne) SetMasterCustomItem(v *CustomItem) *OrderCustomItemUpdateOne {
-	return _u.SetMasterCustomItemID(v.ID)
-}
-
 // SetOrderID sets the "order" edge to the Order entity by ID.
 func (_u *OrderCustomItemUpdateOne) SetOrderID(id int) *OrderCustomItemUpdateOne {
 	_u.mutation.SetOrderID(id)
@@ -384,33 +224,6 @@ func (_u *OrderCustomItemUpdateOne) SetOrder(v *Order) *OrderCustomItemUpdateOne
 // Mutation returns the OrderCustomItemMutation object of the builder.
 func (_u *OrderCustomItemUpdateOne) Mutation() *OrderCustomItemMutation {
 	return _u.mutation
-}
-
-// ClearSelectedCustomItems clears all "selected_custom_items" edges to the SelectedCustomItem entity.
-func (_u *OrderCustomItemUpdateOne) ClearSelectedCustomItems() *OrderCustomItemUpdateOne {
-	_u.mutation.ClearSelectedCustomItems()
-	return _u
-}
-
-// RemoveSelectedCustomItemIDs removes the "selected_custom_items" edge to SelectedCustomItem entities by IDs.
-func (_u *OrderCustomItemUpdateOne) RemoveSelectedCustomItemIDs(ids ...int) *OrderCustomItemUpdateOne {
-	_u.mutation.RemoveSelectedCustomItemIDs(ids...)
-	return _u
-}
-
-// RemoveSelectedCustomItems removes "selected_custom_items" edges to SelectedCustomItem entities.
-func (_u *OrderCustomItemUpdateOne) RemoveSelectedCustomItems(v ...*SelectedCustomItem) *OrderCustomItemUpdateOne {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveSelectedCustomItemIDs(ids...)
-}
-
-// ClearMasterCustomItem clears the "master_custom_item" edge to the CustomItem entity.
-func (_u *OrderCustomItemUpdateOne) ClearMasterCustomItem() *OrderCustomItemUpdateOne {
-	_u.mutation.ClearMasterCustomItem()
-	return _u
 }
 
 // ClearOrder clears the "order" edge to the Order entity.
@@ -459,7 +272,18 @@ func (_u *OrderCustomItemUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *OrderCustomItemUpdateOne) check() error {
+	if _u.mutation.MasterCustomItemCleared() && len(_u.mutation.MasterCustomItemIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "OrderCustomItem.master_custom_item"`)
+	}
+	return nil
+}
+
 func (_u *OrderCustomItemUpdateOne) sqlSave(ctx context.Context) (_node *OrderCustomItem, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(ordercustomitem.Table, ordercustomitem.Columns, sqlgraph.NewFieldSpec(ordercustomitem.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -490,80 +314,6 @@ func (_u *OrderCustomItemUpdateOne) sqlSave(ctx context.Context) (_node *OrderCu
 	}
 	if value, ok := _u.mutation.AddedQuantity(); ok {
 		_spec.AddField(ordercustomitem.FieldQuantity, field.TypeInt, value)
-	}
-	if _u.mutation.SelectedCustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   ordercustomitem.SelectedCustomItemsTable,
-			Columns: []string{ordercustomitem.SelectedCustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(selectedcustomitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedSelectedCustomItemsIDs(); len(nodes) > 0 && !_u.mutation.SelectedCustomItemsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   ordercustomitem.SelectedCustomItemsTable,
-			Columns: []string{ordercustomitem.SelectedCustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(selectedcustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.SelectedCustomItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   ordercustomitem.SelectedCustomItemsTable,
-			Columns: []string{ordercustomitem.SelectedCustomItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(selectedcustomitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
-	if _u.mutation.MasterCustomItemCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   ordercustomitem.MasterCustomItemTable,
-			Columns: []string{ordercustomitem.MasterCustomItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(customitem.FieldID, field.TypeInt),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.MasterCustomItemIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   ordercustomitem.MasterCustomItemTable,
-			Columns: []string{ordercustomitem.MasterCustomItemColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(customitem.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.OrderCleared() {
 		edge := &sqlgraph.EdgeSpec{

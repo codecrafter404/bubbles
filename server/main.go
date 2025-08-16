@@ -16,18 +16,17 @@ import (
 	"github.com/codecrafter404/bubble/gql"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
-var Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
-	Level(zerolog.TraceLevel).
-	With().
-	Timestamp().
-	Caller().
-	Logger()
-
-var Ctx = context.Background()
-
 func main() {
+	log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
+		Level(zerolog.TraceLevel).
+		With().
+		Timestamp().
+		Caller().
+		Logger()
+
 	config := config.Config{
 		DbPath: "file:bubbles.db?_foreign_keys=on",
 		OrderConfig: config.OrderConfig{
@@ -38,10 +37,10 @@ func main() {
 			ServerPort: 8080,
 		},
 	}
-	Logger.Info().Int("port", config.ServerConfig.ServerPort).Msg("Configuration loaded")
+	log.Info().Int("port", config.ServerConfig.ServerPort).Msg("Configuration loaded")
 	client, err := ent.Open("sqlite3", config.DbPath)
 	if err != nil {
-		Logger.Fatal().Str("path", config.DbPath).Err(err).Msg("Failed to open database")
+		log.Fatal().Str("path", config.DbPath).Err(err).Msg("Failed to open database")
 	}
 	defer client.Close()
 
@@ -49,20 +48,20 @@ func main() {
 		context.Background(),
 		migrate.WithGlobalUniqueID(true),
 	); err != nil {
-		Logger.Fatal().Err(err).Msg("Failed to run database migrations")
+		log.Fatal().Err(err).Msg("Failed to run database migrations")
 	}
 
 	http.Handle("/",
 		playground.Handler("bubbles", "/query"),
 	)
 
-	srv := handler.NewDefaultServer(gql.NewSchema(client))
+	srv := handler.NewDefaultServer(gql.NewSchema(client, &config))
 	srv.Use(entgql.Transactioner{TxOpener: client})
 	http.Handle("/query", srv)
 
-	Logger.Info().Int("port", config.ServerConfig.ServerPort).Msg("Listening for incoming connections")
+	log.Info().Int("port", config.ServerConfig.ServerPort).Msg("Listening for incoming connections")
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", config.ServerConfig.ServerPort), nil); err != nil {
-		Logger.Fatal().Err(err).Msg("The server did terminate.")
+		log.Fatal().Err(err).Msg("The server did terminate.")
 	}
 }

@@ -5,6 +5,9 @@ package ent
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"strconv"
 
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
@@ -804,6 +807,89 @@ func (_m *OrderQuery) Paginate(
 	}
 	conn.build(nodes, pager, after, first, before, last)
 	return conn, nil
+}
+
+var (
+	// OrderOrderFieldSubmitted orders Order by submitted.
+	OrderOrderFieldSubmitted = &OrderOrderField{
+		Value: func(_m *Order) (ent.Value, error) {
+			return _m.Submitted, nil
+		},
+		column: order.FieldSubmitted,
+		toTerm: order.BySubmitted,
+		toCursor: func(_m *Order) Cursor {
+			return Cursor{
+				ID:    _m.ID,
+				Value: _m.Submitted,
+			}
+		},
+	}
+	// OrderOrderFieldState orders Order by state.
+	OrderOrderFieldState = &OrderOrderField{
+		Value: func(_m *Order) (ent.Value, error) {
+			return _m.State, nil
+		},
+		column: order.FieldState,
+		toTerm: order.ByState,
+		toCursor: func(_m *Order) Cursor {
+			return Cursor{
+				ID:    _m.ID,
+				Value: _m.State,
+			}
+		},
+	}
+	// OrderOrderFieldTotal orders Order by total.
+	OrderOrderFieldTotal = &OrderOrderField{
+		Value: func(_m *Order) (ent.Value, error) {
+			return _m.Total, nil
+		},
+		column: order.FieldTotal,
+		toTerm: order.ByTotal,
+		toCursor: func(_m *Order) Cursor {
+			return Cursor{
+				ID:    _m.ID,
+				Value: _m.Total,
+			}
+		},
+	}
+)
+
+// String implement fmt.Stringer interface.
+func (f OrderOrderField) String() string {
+	var str string
+	switch f.column {
+	case OrderOrderFieldSubmitted.column:
+		str = "SUBMITTED"
+	case OrderOrderFieldState.column:
+		str = "STATE"
+	case OrderOrderFieldTotal.column:
+		str = "TOTAL"
+	}
+	return str
+}
+
+// MarshalGQL implements graphql.Marshaler interface.
+func (f OrderOrderField) MarshalGQL(w io.Writer) {
+	io.WriteString(w, strconv.Quote(f.String()))
+}
+
+// UnmarshalGQL implements graphql.Unmarshaler interface.
+func (f *OrderOrderField) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("OrderOrderField %T must be a string", v)
+	}
+	switch str {
+	case "SUBMITTED":
+		*f = *OrderOrderFieldSubmitted
+	case "STATE":
+		*f = *OrderOrderFieldState
+	case "TOTAL":
+		*f = *OrderOrderFieldTotal
+	default:
+		return fmt.Errorf("%s is not a valid OrderOrderField", str)
+	}
+	return nil
 }
 
 // OrderOrderField defines the ordering field of Order.

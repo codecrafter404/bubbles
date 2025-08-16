@@ -2,6 +2,7 @@ package gql
 
 import (
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/codecrafter404/bubble/config"
 	"github.com/codecrafter404/bubble/ent"
 )
 
@@ -11,10 +12,11 @@ import (
 
 type Resolver struct {
 	client *ent.Client
+	config *config.Config
 }
 
-func NewSchema(client *ent.Client) graphql.ExecutableSchema {
+func NewSchema(client *ent.Client, config *config.Config) graphql.ExecutableSchema {
 	return NewExecutableSchema(Config{
-		Resolvers: &Resolver{client},
+		Resolvers: &Resolver{client, config},
 	})
 }

@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -38,14 +39,6 @@ func (_c *SelectedCustomItemCreate) AddSelectedVariants(v ...*Item) *SelectedCus
 // SetCustomItemID sets the "custom_item" edge to the CustomItem entity by ID.
 func (_c *SelectedCustomItemCreate) SetCustomItemID(id int) *SelectedCustomItemCreate {
 	_c.mutation.SetCustomItemID(id)
-	return _c
-}
-
-// SetNillableCustomItemID sets the "custom_item" edge to the CustomItem entity by ID if the given value is not nil.
-func (_c *SelectedCustomItemCreate) SetNillableCustomItemID(id *int) *SelectedCustomItemCreate {
-	if id != nil {
-		_c = _c.SetCustomItemID(*id)
-	}
 	return _c
 }
 
@@ -88,6 +81,12 @@ func (_c *SelectedCustomItemCreate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *SelectedCustomItemCreate) check() error {
+	if len(_c.mutation.SelectedVariantsIDs()) == 0 {
+		return &ValidationError{Name: "selected_variants", err: errors.New(`ent: missing required edge "SelectedCustomItem.selected_variants"`)}
+	}
+	if len(_c.mutation.CustomItemIDs()) == 0 {
+		return &ValidationError{Name: "custom_item", err: errors.New(`ent: missing required edge "SelectedCustomItem.custom_item"`)}
+	}
 	return nil
 }
 

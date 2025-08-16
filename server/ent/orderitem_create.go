@@ -33,14 +33,6 @@ func (_c *OrderItemCreate) SetItemID(id int) *OrderItemCreate {
 	return _c
 }
 
-// SetNillableItemID sets the "item" edge to the Item entity by ID if the given value is not nil.
-func (_c *OrderItemCreate) SetNillableItemID(id *int) *OrderItemCreate {
-	if id != nil {
-		_c = _c.SetItemID(*id)
-	}
-	return _c
-}
-
 // SetItem sets the "item" edge to the Item entity.
 func (_c *OrderItemCreate) SetItem(v *Item) *OrderItemCreate {
 	return _c.SetItemID(v.ID)
@@ -101,6 +93,9 @@ func (_c *OrderItemCreate) ExecX(ctx context.Context) {
 func (_c *OrderItemCreate) check() error {
 	if _, ok := _c.mutation.Quantity(); !ok {
 		return &ValidationError{Name: "quantity", err: errors.New(`ent: missing required field "OrderItem.quantity"`)}
+	}
+	if len(_c.mutation.ItemIDs()) == 0 {
+		return &ValidationError{Name: "item", err: errors.New(`ent: missing required edge "OrderItem.item"`)}
 	}
 	return nil
 }

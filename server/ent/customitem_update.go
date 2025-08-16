@@ -42,16 +42,16 @@ func (_u *CustomItemUpdate) SetNillableName(v *string) *CustomItemUpdate {
 	return _u
 }
 
-// SetExclusive sets the "exclusive" field.
-func (_u *CustomItemUpdate) SetExclusive(v bool) *CustomItemUpdate {
-	_u.mutation.SetExclusive(v)
+// SetAllowOnlyOne sets the "allow_only_one" field.
+func (_u *CustomItemUpdate) SetAllowOnlyOne(v bool) *CustomItemUpdate {
+	_u.mutation.SetAllowOnlyOne(v)
 	return _u
 }
 
-// SetNillableExclusive sets the "exclusive" field if the given value is not nil.
-func (_u *CustomItemUpdate) SetNillableExclusive(v *bool) *CustomItemUpdate {
+// SetNillableAllowOnlyOne sets the "allow_only_one" field if the given value is not nil.
+func (_u *CustomItemUpdate) SetNillableAllowOnlyOne(v *bool) *CustomItemUpdate {
 	if v != nil {
-		_u.SetExclusive(*v)
+		_u.SetAllowOnlyOne(*v)
 	}
 	return _u
 }
@@ -136,8 +136,8 @@ func (_u *CustomItemUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(customitem.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Exclusive(); ok {
-		_spec.SetField(customitem.FieldExclusive, field.TypeBool, value)
+	if value, ok := _u.mutation.AllowOnlyOne(); ok {
+		_spec.SetField(customitem.FieldAllowOnlyOne, field.TypeBool, value)
 	}
 	if _u.mutation.PrevCleared() {
 		_spec.ClearField(customitem.FieldPrev, field.TypeInt)
@@ -221,16 +221,16 @@ func (_u *CustomItemUpdateOne) SetNillableName(v *string) *CustomItemUpdateOne {
 	return _u
 }
 
-// SetExclusive sets the "exclusive" field.
-func (_u *CustomItemUpdateOne) SetExclusive(v bool) *CustomItemUpdateOne {
-	_u.mutation.SetExclusive(v)
+// SetAllowOnlyOne sets the "allow_only_one" field.
+func (_u *CustomItemUpdateOne) SetAllowOnlyOne(v bool) *CustomItemUpdateOne {
+	_u.mutation.SetAllowOnlyOne(v)
 	return _u
 }
 
-// SetNillableExclusive sets the "exclusive" field if the given value is not nil.
-func (_u *CustomItemUpdateOne) SetNillableExclusive(v *bool) *CustomItemUpdateOne {
+// SetNillableAllowOnlyOne sets the "allow_only_one" field if the given value is not nil.
+func (_u *CustomItemUpdateOne) SetNillableAllowOnlyOne(v *bool) *CustomItemUpdateOne {
 	if v != nil {
-		_u.SetExclusive(*v)
+		_u.SetAllowOnlyOne(*v)
 	}
 	return _u
 }
@@ -345,8 +345,8 @@ func (_u *CustomItemUpdateOne) sqlSave(ctx context.Context) (_node *CustomItem, 
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(customitem.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Exclusive(); ok {
-		_spec.SetField(customitem.FieldExclusive, field.TypeBool, value)
+	if value, ok := _u.mutation.AllowOnlyOne(); ok {
+		_spec.SetField(customitem.FieldAllowOnlyOne, field.TypeBool, value)
 	}
 	if _u.mutation.PrevCleared() {
 		_spec.ClearField(customitem.FieldPrev, field.TypeInt)

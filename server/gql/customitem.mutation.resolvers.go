@@ -102,8 +102,9 @@ func (r *mutationResolver) DeleteCustomItem(ctx context.Context, id int) (int, e
 	if exists {
 		return id, fmt.Errorf("You may only delete items at the end of the chain")
 	}
+	_, err = client.CustomItem.Delete().Where(customitem.ID(id)).Exec(ctx)
 
-	return client.CustomItem.Delete().Where(customitem.ID(id)).Exec(ctx)
+	return id, err
 }
 
 // DeleteCustomItems is the resolver for the deleteCustomItems field.
