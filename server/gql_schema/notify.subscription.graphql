@@ -1,0 +1,10 @@
+enum NotificationType {
+  NEW_ORDER
+  ORDER_UPDATED
+  ITEMS_CHANGED
+  CUSTOM_ITEMS_CHANGED
+}
+
+type Subscription {
+  notfiy(type: [NotificationType!]):NotificationType!
+}

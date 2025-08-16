@@ -30,8 +30,8 @@ func main() {
 	config := config.Config{
 		DbPath: "file:bubbles.db?_foreign_keys=on",
 		OrderConfig: config.OrderConfig{
-			MaximalConcurrentOrders: 1000,
-			MaximalIdentifiers:      100,
+			MaxNotificationQueue: 1000,
+			MaximalIdentifiers:   100,
 		},
 		ServerConfig: config.ServerConfig{
 			ServerPort: 8080,

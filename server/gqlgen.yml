@@ -19,6 +19,10 @@ autobind:
   - github.com/codecrafter404/bubble/ent
 
 
+model:
+  filename: gql/models_gen.go
+  package: gql
+
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
   # Defines the ID field as Go 'int'.

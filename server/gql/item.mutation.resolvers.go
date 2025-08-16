@@ -19,6 +19,7 @@ func (r *mutationResolver) CreateItem(ctx context.Context, input ent.CreateItemI
 		return nil, fmt.Errorf("The price must be >= 0")
 	}
 
+	NotifyEvent(NotificationTypeItemsChanged, r.notification)
 	return client.Item.Create().SetInput(input).Save(ctx)
 }
 
@@ -30,6 +31,7 @@ func (r *mutationResolver) UpdateItem(ctx context.Context, id int, input ent.Upd
 		return nil, fmt.Errorf("The price must be >= 0")
 	}
 
+	NotifyEvent(NotificationTypeItemsChanged, r.notification)
 	return client.Item.UpdateOneID(id).SetInput(input).Save(ctx)
 }
 
@@ -41,6 +43,7 @@ func (r *mutationResolver) DeleteItem(ctx context.Context, id int) (int, error) 
 		return -1, err
 	}
 
+	NotifyEvent(NotificationTypeItemsChanged, r.notification)
 	return id, nil
 }
 
@@ -53,5 +56,6 @@ func (r *mutationResolver) DeleteItems(ctx context.Context, ids []int) ([]int, e
 			return []int{}, fmt.Errorf("Failed to delete item with id %d: %+v", i, err)
 		}
 	}
+	NotifyEvent(NotificationTypeItemsChanged, r.notification)
 	return ids, nil
 }

@@ -67,6 +67,7 @@ func (r *mutationResolver) CreateCustomItem(ctx context.Context, input ent.Creat
 		return nil, fmt.Errorf("Some variants are already used by other customitems")
 	}
 
+	NotifyEvent(NotificationTypeCustomItemsChanged, r.notification)
 	return client.CustomItem.Create().SetInput(input).Save(ctx)
 }
 
@@ -87,6 +88,7 @@ func (r *mutationResolver) UpdateCustomItem(ctx context.Context, id int, input e
 		}
 	}
 
+	NotifyEvent(NotificationTypeCustomItemsChanged, r.notification)
 	return client.CustomItem.UpdateOneID(id).SetInput(input).Save(ctx)
 }
 
@@ -104,6 +106,7 @@ func (r *mutationResolver) DeleteCustomItem(ctx context.Context, id int) (int, e
 	}
 	_, err = client.CustomItem.Delete().Where(customitem.ID(id)).Exec(ctx)
 
+	NotifyEvent(NotificationTypeCustomItemsChanged, r.notification)
 	return id, err
 }
 
@@ -132,6 +135,7 @@ func (r *mutationResolver) DeleteCustomItems(ctx context.Context, ids []int) ([]
 	}
 
 	_, err = client.CustomItem.Delete().Where(customitem.IDIn(ids...)).Exec(ctx)
+	NotifyEvent(NotificationTypeCustomItemsChanged, r.notification)
 	return ids, err
 }
 

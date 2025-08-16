@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -43,6 +44,7 @@ type Config struct {
 type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
+	Subscription() SubscriptionResolver
 	CreateOrderCustomItemInput() CreateOrderCustomItemInputResolver
 	CreateOrderInput() CreateOrderInputResolver
 }
@@ -78,6 +80,7 @@ type ComplexityRoot struct {
 		DeleteItems       func(childComplexity int, ids []int) int
 		UpdateCustomItem  func(childComplexity int, id int, input ent.UpdateCustomItemInput) int
 		UpdateItem        func(childComplexity int, id int, input ent.UpdateItemInput) int
+		UpdateOrder       func(childComplexity int, id int, input ent.UpdateOrderInput) int
 	}
 
 	Order struct {
@@ -136,6 +139,10 @@ type ComplexityRoot struct {
 		ID               func(childComplexity int) int
 		SelectedVariants func(childComplexity int) int
 	}
+
+	Subscription struct {
+		Notfiy func(childComplexity int, typeArg []NotificationType) int
+	}
 }
 
 type MutationResolver interface {
@@ -148,6 +155,7 @@ type MutationResolver interface {
 	DeleteItem(ctx context.Context, id int) (int, error)
 	DeleteItems(ctx context.Context, ids []int) ([]int, error)
 	CreateOrder(ctx context.Context, input ent.CreateOrderInput) (*ent.Order, error)
+	UpdateOrder(ctx context.Context, id int, input ent.UpdateOrderInput) (*ent.Order, error)
 }
 type QueryResolver interface {
 	Node(ctx context.Context, id int) (ent.Noder, error)
@@ -155,6 +163,9 @@ type QueryResolver interface {
 	CustomItems(ctx context.Context) ([]*ent.CustomItem, error)
 	Items(ctx context.Context) ([]*ent.Item, error)
 	Orders(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.OrderOrder) (*ent.OrderConnection, error)
+}
+type SubscriptionResolver interface {
+	Notfiy(ctx context.Context, typeArg []NotificationType) (<-chan NotificationType, error)
 }
 
 type CreateOrderCustomItemInputResolver interface {
@@ -368,6 +379,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateItem(childComplexity, args["id"].(int), args["input"].(ent.UpdateItemInput)), true
+
+	case "Mutation.updateOrder":
+		if e.complexity.Mutation.UpdateOrder == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateOrder_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateOrder(childComplexity, args["id"].(int), args["input"].(ent.UpdateOrderInput)), true
 
 	case "Order.customItems":
 		if e.complexity.Order.CustomItems == nil {
@@ -615,6 +638,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SelectedCustomItem.SelectedVariants(childComplexity), true
 
+	case "Subscription.notfiy":
+		if e.complexity.Subscription.Notfiy == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_notfiy_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.Notfiy(childComplexity, args["type"].([]NotificationType)), true
+
 	}
 	return 0, false
 }
@@ -676,6 +711,23 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
 			data := ec._Mutation(ctx, opCtx.Operation.SelectionSet)
 			var buf bytes.Buffer
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
+	case ast.Subscription:
+		next := ec._Subscription(ctx, opCtx.Operation.SelectionSet)
+
+		var buf bytes.Buffer
+		return func(ctx context.Context) *graphql.Response {
+			buf.Reset()
+			data := next(ctx)
+
+			if data == nil {
+				return nil
+			}
 			data.MarshalGQL(&buf)
 
 			return &graphql.Response{
@@ -1092,6 +1144,17 @@ input UpdateOrderInput {
   deleteItems(ids: [ID!]!): [ID!]!
 }
 `, BuiltIn: false},
+	{Name: "../gql_schema/notify.subscription.graphql", Input: `enum NotificationType {
+  NEW_ORDER
+  ORDER_UPDATED
+  ITEMS_CHANGED
+  CUSTOM_ITEMS_CHANGED
+}
+
+type Subscription {
+  notfiy(type: [NotificationType!]):NotificationType!
+}
+`, BuiltIn: false},
 	{Name: "../gql_schema/order.mutation.graphql", Input: `extend input CreateOrderCustomItemInput {
   selectedCustomItems: [CreateSelectedCustomItemInput!]!
 }
@@ -1102,9 +1165,9 @@ extend input CreateOrderInput {
 
 extend type Mutation {
   createOrder(input: CreateOrderInput!): Order!
+  updateOrder(id: ID!, input: UpdateOrderInput!): Order!
 }
 `, BuiltIn: false},
-	{Name: "../gql_schema/ordering.graphql", Input: ``, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -1221,6 +1284,22 @@ func (ec *executionContext) field_Mutation_updateItem_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2int)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateOrderInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐUpdateOrderInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1282,6 +1361,17 @@ func (ec *executionContext) field_Query_orders_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["orderBy"] = arg4
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_notfiy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalONotificationType2ᚕgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationTypeᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["type"] = arg0
 	return args, nil
 }
 
@@ -2389,6 +2479,77 @@ func (ec *executionContext) fieldContext_Mutation_createOrder(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createOrder_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateOrder(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateOrder(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateOrder(rctx, fc.Args["id"].(int), fc.Args["input"].(ent.UpdateOrderInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*ent.Order)
+	fc.Result = res
+	return ec.marshalNOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐOrder(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Order_id(ctx, field)
+			case "submitted":
+				return ec.fieldContext_Order_submitted(ctx, field)
+			case "identifier":
+				return ec.fieldContext_Order_identifier(ctx, field)
+			case "state":
+				return ec.fieldContext_Order_state(ctx, field)
+			case "total":
+				return ec.fieldContext_Order_total(ctx, field)
+			case "items":
+				return ec.fieldContext_Order_items(ctx, field)
+			case "customItems":
+				return ec.fieldContext_Order_customItems(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateOrder_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4157,6 +4318,75 @@ func (ec *executionContext) fieldContext_SelectedCustomItem_customItem(_ context
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CustomItem", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_notfiy(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	fc, err := ec.fieldContext_Subscription_notfiy(ctx, field)
+	if err != nil {
+		return nil
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().Notfiy(rctx, fc.Args["type"].([]NotificationType))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func(ctx context.Context) graphql.Marshaler {
+		select {
+		case res, ok := <-resTmp.(<-chan NotificationType):
+			if !ok {
+				return nil
+			}
+			return graphql.WriterFunc(func(w io.Writer) {
+				w.Write([]byte{'{'})
+				graphql.MarshalString(field.Alias).MarshalGQL(w)
+				w.Write([]byte{':'})
+				ec.marshalNNotificationType2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationType(ctx, field.Selections, res).MarshalGQL(w)
+				w.Write([]byte{'}'})
+			})
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func (ec *executionContext) fieldContext_Subscription_notfiy(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NotificationType does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_notfiy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -6840,6 +7070,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateOrder":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateOrder(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7650,6 +7887,26 @@ func (ec *executionContext) _SelectedCustomItem(ctx context.Context, sel ast.Sel
 	return out
 }
 
+var subscriptionImplementors = []string{"Subscription"}
+
+func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subscriptionImplementors)
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Subscription",
+	})
+	if len(fields) != 1 {
+		ec.Errorf(ctx, "must subscribe to exactly one stream")
+		return nil
+	}
+
+	switch fields[0].Name {
+	case "notfiy":
+		return ec._Subscription_notfiy(ctx, fields[0])
+	default:
+		panic("unknown field " + strconv.Quote(fields[0].Name))
+	}
+}
+
 var __DirectiveImplementors = []string{"__Directive"}
 
 func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionSet, obj *introspection.Directive) graphql.Marshaler {
@@ -8318,6 +8575,16 @@ func (ec *executionContext) marshalNNode2ᚕgithubᚗcomᚋcodecrafter404ᚋbubb
 	return ret
 }
 
+func (ec *executionContext) unmarshalNNotificationType2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationType(ctx context.Context, v any) (NotificationType, error) {
+	var res NotificationType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNNotificationType2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationType(ctx context.Context, sel ast.SelectionSet, v NotificationType) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNOrder2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐOrder(ctx context.Context, sel ast.SelectionSet, v ent.Order) graphql.Marshaler {
 	return ec._Order(ctx, sel, &v)
 }
@@ -8455,6 +8722,11 @@ func (ec *executionContext) unmarshalNUpdateCustomItemInput2githubᚗcomᚋcodec
 
 func (ec *executionContext) unmarshalNUpdateItemInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐUpdateItemInput(ctx context.Context, v any) (ent.UpdateItemInput, error) {
 	res, err := ec.unmarshalInputUpdateItemInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateOrderInput2githubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐUpdateOrderInput(ctx context.Context, v any) (ent.UpdateOrderInput, error) {
+	res, err := ec.unmarshalInputUpdateOrderInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -8833,6 +9105,71 @@ func (ec *executionContext) marshalONode2githubᚗcomᚋcodecrafter404ᚋbubble�
 		return graphql.Null
 	}
 	return ec._Node(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalONotificationType2ᚕgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationTypeᚄ(ctx context.Context, v any) ([]NotificationType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]NotificationType, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNNotificationType2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationType(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalONotificationType2ᚕgithubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationTypeᚄ(ctx context.Context, sel ast.SelectionSet, v []NotificationType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNNotificationType2githubᚗcomᚋcodecrafter404ᚋbubbleᚋgqlᚐNotificationType(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋcodecrafter404ᚋbubbleᚋentᚐOrder(ctx context.Context, sel ast.SelectionSet, v *ent.Order) graphql.Marshaler {
