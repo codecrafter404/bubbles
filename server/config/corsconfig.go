@@ -1,8 +1,8 @@
 package config
 
 type CorsConfig struct {
-	AccessControlAllowOrigin      []string
-	AccessControlAllowCredentials bool
-	AccessControlAllowMethods     []string
+	AccessControlAllowOrigin      []string `default:"*"`
+	AccessControlAllowCredentials bool     `default:"true"`
+	AccessControlAllowMethods     []string `default:"POST, GET, OPTIONS"`
 	AccessControlAllowHeaders     []string
 }

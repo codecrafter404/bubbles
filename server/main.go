@@ -28,24 +28,14 @@ func main() {
 		Caller().
 		Logger()
 
-	config := config.Config{
-		DbPath: "file:" + "bubbles.db" + "?_foreign_keys=on",
-		OrderConfig: config.OrderConfig{
-			MaxNotificationQueue: 1000,
-			MaximalIdentifiers:   100,
-		},
-		ServerConfig: config.ServerConfig{
-			ServerPort:        8080,
-			PlaygroundEnabled: true,
-			CorsConfig: config.CorsConfig{
-				AccessControlAllowCredentials: true,
-				AccessControlAllowHeaders:     []string{"*"},
-				AccessControlAllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-				AccessControlAllowOrigin:      []string{"*"},
-			},
-		},
+	config, err := config.LoadConfig()
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load config")
 	}
-	log.Info().Int("port", config.ServerConfig.ServerPort).Msg("Configuration loaded")
+
+	log.Logger = log.Logger.With().Logger().Level(config.LogLevel)
+
 	client, err := ent.Open("sqlite3", config.DbPath)
 	if err != nil {
 		log.Fatal().Str("path", config.DbPath).Err(err).Msg("Failed to open database")
@@ -56,7 +46,7 @@ func main() {
 		context.Background(),
 		migrate.WithGlobalUniqueID(true),
 	); err != nil {
-		log.Fatal().Err(err).Msg("Failed to run database migrations")
+		log.Fatal().Err(err).Str("connection_string", config.DbPath).Msg("Failed to run database migrations")
 	}
 
 	mux := http.NewServeMux()
