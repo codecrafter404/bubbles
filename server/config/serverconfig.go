@@ -1,5 +1,7 @@
 package config
 
 type ServerConfig struct {
-	ServerPort int
+	ServerPort        int
+	PlaygroundEnabled bool
+	CorsConfig        CorsConfig
 }
