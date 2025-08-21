@@ -81,7 +81,7 @@ func (_q *SelectedCustomItemQuery) QuerySelectedVariants() *ItemQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(selectedcustomitem.Table, selectedcustomitem.FieldID, selector),
 			sqlgraph.To(item.Table, item.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, selectedcustomitem.SelectedVariantsTable, selectedcustomitem.SelectedVariantsColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, selectedcustomitem.SelectedVariantsTable, selectedcustomitem.SelectedVariantsPrimaryKey...),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -451,33 +451,63 @@ func (_q *SelectedCustomItemQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 }
 
 func (_q *SelectedCustomItemQuery) loadSelectedVariants(ctx context.Context, query *ItemQuery, nodes []*SelectedCustomItem, init func(*SelectedCustomItem), assign func(*SelectedCustomItem, *Item)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*SelectedCustomItem)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
+	edgeIDs := make([]driver.Value, len(nodes))
+	byID := make(map[int]*SelectedCustomItem)
+	nids := make(map[int]map[*SelectedCustomItem]struct{})
+	for i, node := range nodes {
+		edgeIDs[i] = node.ID
+		byID[node.ID] = node
 		if init != nil {
-			init(nodes[i])
+			init(node)
 		}
 	}
-	query.withFKs = true
-	query.Where(predicate.Item(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(selectedcustomitem.SelectedVariantsColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
+	query.Where(func(s *sql.Selector) {
+		joinT := sql.Table(selectedcustomitem.SelectedVariantsTable)
+		s.Join(joinT).On(s.C(item.FieldID), joinT.C(selectedcustomitem.SelectedVariantsPrimaryKey[1]))
+		s.Where(sql.InValues(joinT.C(selectedcustomitem.SelectedVariantsPrimaryKey[0]), edgeIDs...))
+		columns := s.SelectedColumns()
+		s.Select(joinT.C(selectedcustomitem.SelectedVariantsPrimaryKey[0]))
+		s.AppendSelect(columns...)
+		s.SetDistinct(false)
+	})
+	if err := query.prepareQuery(ctx); err != nil {
+		return err
+	}
+	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
+		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]any, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]any{new(sql.NullInt64)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []any) error {
+				outValue := int(values[0].(*sql.NullInt64).Int64)
+				inValue := int(values[1].(*sql.NullInt64).Int64)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*SelectedCustomItem]struct{}{byID[outValue]: {}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byID[outValue]] = struct{}{}
+				return nil
+			}
+		})
+	})
+	neighbors, err := withInterceptors[[]*Item](ctx, query, qr, query.inters)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.selected_custom_item_selected_variants
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "selected_custom_item_selected_variants" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		nodes, ok := nids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "selected_custom_item_selected_variants" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected "selected_variants" node returned %v`, n.ID)
 		}
-		assign(node, n)
+		for kn := range nodes {
+			assign(kn, n)
+		}
 	}
 	return nil
 }

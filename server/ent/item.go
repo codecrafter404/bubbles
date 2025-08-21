@@ -25,10 +25,32 @@ type Item struct {
 	// weather the item is (physically) in stock
 	InStock bool `json:"in_stock,omitempty"`
 	// Custom text, which will be displayed
-	Notes                                  string `json:"notes,omitempty"`
-	custom_item_variants                   *int
-	selected_custom_item_selected_variants *int
-	selectValues                           sql.SelectValues
+	Notes string `json:"notes,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the ItemQuery when eager-loading is set.
+	Edges                ItemEdges `json:"edges"`
+	custom_item_variants *int
+	selectValues         sql.SelectValues
+}
+
+// ItemEdges holds the relations/edges for other nodes in the graph.
+type ItemEdges struct {
+	// SelectedCustomItems holds the value of the selected_custom_items edge.
+	SelectedCustomItems []*SelectedCustomItem `json:"selected_custom_items,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+
+	namedSelectedCustomItems map[string][]*SelectedCustomItem
+}
+
+// SelectedCustomItemsOrErr returns the SelectedCustomItems value or an error if the edge
+// was not loaded in eager-loading.
+func (e ItemEdges) SelectedCustomItemsOrErr() ([]*SelectedCustomItem, error) {
+	if e.loadedTypes[0] {
+		return e.SelectedCustomItems, nil
+	}
+	return nil, &NotLoadedError{edge: "selected_custom_items"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -45,8 +67,6 @@ func (*Item) scanValues(columns []string) ([]any, error) {
 		case item.FieldName, item.FieldImage, item.FieldNotes:
 			values[i] = new(sql.NullString)
 		case item.ForeignKeys[0]: // custom_item_variants
-			values[i] = new(sql.NullInt64)
-		case item.ForeignKeys[1]: // selected_custom_item_selected_variants
 			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -106,13 +126,6 @@ func (_m *Item) assignValues(columns []string, values []any) error {
 				_m.custom_item_variants = new(int)
 				*_m.custom_item_variants = int(value.Int64)
 			}
-		case item.ForeignKeys[1]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field selected_custom_item_selected_variants", value)
-			} else if value.Valid {
-				_m.selected_custom_item_selected_variants = new(int)
-				*_m.selected_custom_item_selected_variants = int(value.Int64)
-			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -124,6 +137,11 @@ func (_m *Item) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Item) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QuerySelectedCustomItems queries the "selected_custom_items" edge of the Item entity.
+func (_m *Item) QuerySelectedCustomItems() *SelectedCustomItemQuery {
+	return NewItemClient(_m.config).QuerySelectedCustomItems(_m)
 }
 
 // Update returns a builder for updating this Item.
@@ -165,6 +183,30 @@ func (_m *Item) String() string {
 	builder.WriteString(_m.Notes)
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedSelectedCustomItems returns the SelectedCustomItems named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Item) NamedSelectedCustomItems(name string) ([]*SelectedCustomItem, error) {
+	if _m.Edges.namedSelectedCustomItems == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedSelectedCustomItems[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Item) appendNamedSelectedCustomItems(name string, edges ...*SelectedCustomItem) {
+	if _m.Edges.namedSelectedCustomItems == nil {
+		_m.Edges.namedSelectedCustomItems = make(map[string][]*SelectedCustomItem)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedSelectedCustomItems[name] = []*SelectedCustomItem{}
+	} else {
+		_m.Edges.namedSelectedCustomItems[name] = append(_m.Edges.namedSelectedCustomItems[name], edges...)
+	}
 }
 
 // Items is a parsable slice of Item.

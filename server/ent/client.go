@@ -506,6 +506,22 @@ func (c *ItemClient) GetX(ctx context.Context, id int) *Item {
 	return obj
 }
 
+// QuerySelectedCustomItems queries the selected_custom_items edge of a Item.
+func (c *ItemClient) QuerySelectedCustomItems(_m *Item) *SelectedCustomItemQuery {
+	query := (&SelectedCustomItemClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(item.Table, item.FieldID, id),
+			sqlgraph.To(selectedcustomitem.Table, selectedcustomitem.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, item.SelectedCustomItemsTable, item.SelectedCustomItemsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ItemClient) Hooks() []Hook {
 	return c.hooks.Item
@@ -1158,7 +1174,7 @@ func (c *SelectedCustomItemClient) QuerySelectedVariants(_m *SelectedCustomItem)
 		step := sqlgraph.NewStep(
 			sqlgraph.From(selectedcustomitem.Table, selectedcustomitem.FieldID, id),
 			sqlgraph.To(item.Table, item.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, selectedcustomitem.SelectedVariantsTable, selectedcustomitem.SelectedVariantsColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, selectedcustomitem.SelectedVariantsTable, selectedcustomitem.SelectedVariantsPrimaryKey...),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

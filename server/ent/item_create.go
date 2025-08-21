@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/codecrafter404/bubble/ent/item"
+	"github.com/codecrafter404/bubble/ent/selectedcustomitem"
 )
 
 // ItemCreate is the builder for creating a Item entity.
@@ -47,6 +48,21 @@ func (_c *ItemCreate) SetInStock(v bool) *ItemCreate {
 func (_c *ItemCreate) SetNotes(v string) *ItemCreate {
 	_c.mutation.SetNotes(v)
 	return _c
+}
+
+// AddSelectedCustomItemIDs adds the "selected_custom_items" edge to the SelectedCustomItem entity by IDs.
+func (_c *ItemCreate) AddSelectedCustomItemIDs(ids ...int) *ItemCreate {
+	_c.mutation.AddSelectedCustomItemIDs(ids...)
+	return _c
+}
+
+// AddSelectedCustomItems adds the "selected_custom_items" edges to the SelectedCustomItem entity.
+func (_c *ItemCreate) AddSelectedCustomItems(v ...*SelectedCustomItem) *ItemCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSelectedCustomItemIDs(ids...)
 }
 
 // Mutation returns the ItemMutation object of the builder.
@@ -143,6 +159,22 @@ func (_c *ItemCreate) createSpec() (*Item, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Notes(); ok {
 		_spec.SetField(item.FieldNotes, field.TypeString, value)
 		_node.Notes = value
+	}
+	if nodes := _c.mutation.SelectedCustomItemsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   item.SelectedCustomItemsTable,
+			Columns: item.SelectedCustomItemsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(selectedcustomitem.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

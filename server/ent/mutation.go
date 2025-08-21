@@ -626,19 +626,22 @@ func (m *CustomItemMutation) ResetEdge(name string) error {
 // ItemMutation represents an operation that mutates the Item nodes in the graph.
 type ItemMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	name          *string
-	price         *float64
-	addprice      *float64
-	image         *string
-	in_stock      *bool
-	notes         *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Item, error)
-	predicates    []predicate.Item
+	op                           Op
+	typ                          string
+	id                           *int
+	name                         *string
+	price                        *float64
+	addprice                     *float64
+	image                        *string
+	in_stock                     *bool
+	notes                        *string
+	clearedFields                map[string]struct{}
+	selected_custom_items        map[int]struct{}
+	removedselected_custom_items map[int]struct{}
+	clearedselected_custom_items bool
+	done                         bool
+	oldValue                     func(context.Context) (*Item, error)
+	predicates                   []predicate.Item
 }
 
 var _ ent.Mutation = (*ItemMutation)(nil)
@@ -939,6 +942,60 @@ func (m *ItemMutation) ResetNotes() {
 	m.notes = nil
 }
 
+// AddSelectedCustomItemIDs adds the "selected_custom_items" edge to the SelectedCustomItem entity by ids.
+func (m *ItemMutation) AddSelectedCustomItemIDs(ids ...int) {
+	if m.selected_custom_items == nil {
+		m.selected_custom_items = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.selected_custom_items[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSelectedCustomItems clears the "selected_custom_items" edge to the SelectedCustomItem entity.
+func (m *ItemMutation) ClearSelectedCustomItems() {
+	m.clearedselected_custom_items = true
+}
+
+// SelectedCustomItemsCleared reports if the "selected_custom_items" edge to the SelectedCustomItem entity was cleared.
+func (m *ItemMutation) SelectedCustomItemsCleared() bool {
+	return m.clearedselected_custom_items
+}
+
+// RemoveSelectedCustomItemIDs removes the "selected_custom_items" edge to the SelectedCustomItem entity by IDs.
+func (m *ItemMutation) RemoveSelectedCustomItemIDs(ids ...int) {
+	if m.removedselected_custom_items == nil {
+		m.removedselected_custom_items = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.selected_custom_items, ids[i])
+		m.removedselected_custom_items[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSelectedCustomItems returns the removed IDs of the "selected_custom_items" edge to the SelectedCustomItem entity.
+func (m *ItemMutation) RemovedSelectedCustomItemsIDs() (ids []int) {
+	for id := range m.removedselected_custom_items {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SelectedCustomItemsIDs returns the "selected_custom_items" edge IDs in the mutation.
+func (m *ItemMutation) SelectedCustomItemsIDs() (ids []int) {
+	for id := range m.selected_custom_items {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSelectedCustomItems resets all changes to the "selected_custom_items" edge.
+func (m *ItemMutation) ResetSelectedCustomItems() {
+	m.selected_custom_items = nil
+	m.clearedselected_custom_items = false
+	m.removedselected_custom_items = nil
+}
+
 // Where appends a list predicates to the ItemMutation builder.
 func (m *ItemMutation) Where(ps ...predicate.Item) {
 	m.predicates = append(m.predicates, ps...)
@@ -1155,49 +1212,85 @@ func (m *ItemMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ItemMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.selected_custom_items != nil {
+		edges = append(edges, item.EdgeSelectedCustomItems)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *ItemMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case item.EdgeSelectedCustomItems:
+		ids := make([]ent.Value, 0, len(m.selected_custom_items))
+		for id := range m.selected_custom_items {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ItemMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedselected_custom_items != nil {
+		edges = append(edges, item.EdgeSelectedCustomItems)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *ItemMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case item.EdgeSelectedCustomItems:
+		ids := make([]ent.Value, 0, len(m.removedselected_custom_items))
+		for id := range m.removedselected_custom_items {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ItemMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedselected_custom_items {
+		edges = append(edges, item.EdgeSelectedCustomItems)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *ItemMutation) EdgeCleared(name string) bool {
+	switch name {
+	case item.EdgeSelectedCustomItems:
+		return m.clearedselected_custom_items
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *ItemMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown Item unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *ItemMutation) ResetEdge(name string) error {
+	switch name {
+	case item.EdgeSelectedCustomItems:
+		m.ResetSelectedCustomItems()
+		return nil
+	}
 	return fmt.Errorf("unknown Item edge %s", name)
 }
 

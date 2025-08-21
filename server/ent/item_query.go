@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,18 +14,21 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/codecrafter404/bubble/ent/item"
 	"github.com/codecrafter404/bubble/ent/predicate"
+	"github.com/codecrafter404/bubble/ent/selectedcustomitem"
 )
 
 // ItemQuery is the builder for querying Item entities.
 type ItemQuery struct {
 	config
-	ctx        *QueryContext
-	order      []item.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Item
-	withFKs    bool
-	modifiers  []func(*sql.Selector)
-	loadTotal  []func(context.Context, []*Item) error
+	ctx                          *QueryContext
+	order                        []item.OrderOption
+	inters                       []Interceptor
+	predicates                   []predicate.Item
+	withSelectedCustomItems      *SelectedCustomItemQuery
+	withFKs                      bool
+	modifiers                    []func(*sql.Selector)
+	loadTotal                    []func(context.Context, []*Item) error
+	withNamedSelectedCustomItems map[string]*SelectedCustomItemQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -59,6 +63,28 @@ func (_q *ItemQuery) Unique(unique bool) *ItemQuery {
 func (_q *ItemQuery) Order(o ...item.OrderOption) *ItemQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QuerySelectedCustomItems chains the current query on the "selected_custom_items" edge.
+func (_q *ItemQuery) QuerySelectedCustomItems() *SelectedCustomItemQuery {
+	query := (&SelectedCustomItemClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(item.Table, item.FieldID, selector),
+			sqlgraph.To(selectedcustomitem.Table, selectedcustomitem.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, item.SelectedCustomItemsTable, item.SelectedCustomItemsPrimaryKey...),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Item entity from the query.
@@ -248,15 +274,27 @@ func (_q *ItemQuery) Clone() *ItemQuery {
 		return nil
 	}
 	return &ItemQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]item.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.Item{}, _q.predicates...),
+		config:                  _q.config,
+		ctx:                     _q.ctx.Clone(),
+		order:                   append([]item.OrderOption{}, _q.order...),
+		inters:                  append([]Interceptor{}, _q.inters...),
+		predicates:              append([]predicate.Item{}, _q.predicates...),
+		withSelectedCustomItems: _q.withSelectedCustomItems.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithSelectedCustomItems tells the query-builder to eager-load the nodes that are connected to
+// the "selected_custom_items" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ItemQuery) WithSelectedCustomItems(opts ...func(*SelectedCustomItemQuery)) *ItemQuery {
+	query := (&SelectedCustomItemClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSelectedCustomItems = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -335,9 +373,12 @@ func (_q *ItemQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *ItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Item, error) {
 	var (
-		nodes   = []*Item{}
-		withFKs = _q.withFKs
-		_spec   = _q.querySpec()
+		nodes       = []*Item{}
+		withFKs     = _q.withFKs
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withSelectedCustomItems != nil,
+		}
 	)
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, item.ForeignKeys...)
@@ -348,6 +389,7 @@ func (_q *ItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Item, e
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Item{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if len(_q.modifiers) > 0 {
@@ -362,12 +404,90 @@ func (_q *ItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Item, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withSelectedCustomItems; query != nil {
+		if err := _q.loadSelectedCustomItems(ctx, query, nodes,
+			func(n *Item) { n.Edges.SelectedCustomItems = []*SelectedCustomItem{} },
+			func(n *Item, e *SelectedCustomItem) {
+				n.Edges.SelectedCustomItems = append(n.Edges.SelectedCustomItems, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedSelectedCustomItems {
+		if err := _q.loadSelectedCustomItems(ctx, query, nodes,
+			func(n *Item) { n.appendNamedSelectedCustomItems(name) },
+			func(n *Item, e *SelectedCustomItem) { n.appendNamedSelectedCustomItems(name, e) }); err != nil {
+			return nil, err
+		}
+	}
 	for i := range _q.loadTotal {
 		if err := _q.loadTotal[i](ctx, nodes); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
+}
+
+func (_q *ItemQuery) loadSelectedCustomItems(ctx context.Context, query *SelectedCustomItemQuery, nodes []*Item, init func(*Item), assign func(*Item, *SelectedCustomItem)) error {
+	edgeIDs := make([]driver.Value, len(nodes))
+	byID := make(map[int]*Item)
+	nids := make(map[int]map[*Item]struct{})
+	for i, node := range nodes {
+		edgeIDs[i] = node.ID
+		byID[node.ID] = node
+		if init != nil {
+			init(node)
+		}
+	}
+	query.Where(func(s *sql.Selector) {
+		joinT := sql.Table(item.SelectedCustomItemsTable)
+		s.Join(joinT).On(s.C(selectedcustomitem.FieldID), joinT.C(item.SelectedCustomItemsPrimaryKey[0]))
+		s.Where(sql.InValues(joinT.C(item.SelectedCustomItemsPrimaryKey[1]), edgeIDs...))
+		columns := s.SelectedColumns()
+		s.Select(joinT.C(item.SelectedCustomItemsPrimaryKey[1]))
+		s.AppendSelect(columns...)
+		s.SetDistinct(false)
+	})
+	if err := query.prepareQuery(ctx); err != nil {
+		return err
+	}
+	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
+		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]any, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]any{new(sql.NullInt64)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []any) error {
+				outValue := int(values[0].(*sql.NullInt64).Int64)
+				inValue := int(values[1].(*sql.NullInt64).Int64)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*Item]struct{}{byID[outValue]: {}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byID[outValue]] = struct{}{}
+				return nil
+			}
+		})
+	})
+	neighbors, err := withInterceptors[[]*SelectedCustomItem](ctx, query, qr, query.inters)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected "selected_custom_items" node returned %v`, n.ID)
+		}
+		for kn := range nodes {
+			assign(kn, n)
+		}
+	}
+	return nil
 }
 
 func (_q *ItemQuery) sqlCount(ctx context.Context) (int, error) {
@@ -452,6 +572,20 @@ func (_q *ItemQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// WithNamedSelectedCustomItems tells the query-builder to eager-load the nodes that are connected to the "selected_custom_items"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *ItemQuery) WithNamedSelectedCustomItems(name string, opts ...func(*SelectedCustomItemQuery)) *ItemQuery {
+	query := (&SelectedCustomItemClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedSelectedCustomItems == nil {
+		_q.withNamedSelectedCustomItems = make(map[string]*SelectedCustomItemQuery)
+	}
+	_q.withNamedSelectedCustomItems[name] = query
+	return _q
 }
 
 // ItemGroupBy is the group-by builder for Item entities.

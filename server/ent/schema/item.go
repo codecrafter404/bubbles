@@ -4,6 +4,7 @@ import (
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
 	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
 
@@ -25,7 +26,9 @@ func (Item) Fields() []ent.Field {
 
 // Edges of the Item.
 func (Item) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.From("selected_custom_items", SelectedCustomItem.Type).Ref("selected_variants").Annotations(entgql.Skip(entgql.SkipAll)),
+	}
 }
 func (Item) Annotations() []schema.Annotation {
 	return []schema.Annotation{

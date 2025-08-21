@@ -4,6 +4,7 @@ package item
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -21,8 +22,15 @@ const (
 	FieldInStock = "in_stock"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// EdgeSelectedCustomItems holds the string denoting the selected_custom_items edge name in mutations.
+	EdgeSelectedCustomItems = "selected_custom_items"
 	// Table holds the table name of the item in the database.
 	Table = "items"
+	// SelectedCustomItemsTable is the table that holds the selected_custom_items relation/edge. The primary key declared below.
+	SelectedCustomItemsTable = "selected_custom_item_selected_variants"
+	// SelectedCustomItemsInverseTable is the table name for the SelectedCustomItem entity.
+	// It exists in this package in order to avoid circular dependency with the "selectedcustomitem" package.
+	SelectedCustomItemsInverseTable = "selected_custom_items"
 )
 
 // Columns holds all SQL columns for item fields.
@@ -39,8 +47,13 @@ var Columns = []string{
 // table and are not defined as standalone fields in the schema.
 var ForeignKeys = []string{
 	"custom_item_variants",
-	"selected_custom_item_selected_variants",
 }
+
+var (
+	// SelectedCustomItemsPrimaryKey and SelectedCustomItemsColumn2 are the table columns denoting the
+	// primary key for the selected_custom_items relation (M2M).
+	SelectedCustomItemsPrimaryKey = []string{"selected_custom_item_id", "item_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -88,4 +101,25 @@ func ByInStock(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// BySelectedCustomItemsCount orders the results by selected_custom_items count.
+func BySelectedCustomItemsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSelectedCustomItemsStep(), opts...)
+	}
+}
+
+// BySelectedCustomItems orders the results by selected_custom_items terms.
+func BySelectedCustomItems(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSelectedCustomItemsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newSelectedCustomItemsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SelectedCustomItemsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2M, true, SelectedCustomItemsTable, SelectedCustomItemsPrimaryKey...),
+	)
 }

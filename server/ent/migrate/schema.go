@@ -30,7 +30,6 @@ var (
 		{Name: "in_stock", Type: field.TypeBool},
 		{Name: "notes", Type: field.TypeString},
 		{Name: "custom_item_variants", Type: field.TypeInt, Nullable: true},
-		{Name: "selected_custom_item_selected_variants", Type: field.TypeInt, Nullable: true},
 	}
 	// ItemsTable holds the schema information for the "items" table.
 	ItemsTable = &schema.Table{
@@ -42,12 +41,6 @@ var (
 				Symbol:     "items_custom_items_variants",
 				Columns:    []*schema.Column{ItemsColumns[6]},
 				RefColumns: []*schema.Column{CustomItemsColumns[0]},
-				OnDelete:   schema.SetNull,
-			},
-			{
-				Symbol:     "items_selected_custom_items_selected_variants",
-				Columns:    []*schema.Column{ItemsColumns[7]},
-				RefColumns: []*schema.Column{SelectedCustomItemsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 		},
@@ -146,6 +139,31 @@ var (
 			},
 		},
 	}
+	// SelectedCustomItemSelectedVariantsColumns holds the columns for the "selected_custom_item_selected_variants" table.
+	SelectedCustomItemSelectedVariantsColumns = []*schema.Column{
+		{Name: "selected_custom_item_id", Type: field.TypeInt},
+		{Name: "item_id", Type: field.TypeInt},
+	}
+	// SelectedCustomItemSelectedVariantsTable holds the schema information for the "selected_custom_item_selected_variants" table.
+	SelectedCustomItemSelectedVariantsTable = &schema.Table{
+		Name:       "selected_custom_item_selected_variants",
+		Columns:    SelectedCustomItemSelectedVariantsColumns,
+		PrimaryKey: []*schema.Column{SelectedCustomItemSelectedVariantsColumns[0], SelectedCustomItemSelectedVariantsColumns[1]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "selected_custom_item_selected_variants_selected_custom_item_id",
+				Columns:    []*schema.Column{SelectedCustomItemSelectedVariantsColumns[0]},
+				RefColumns: []*schema.Column{SelectedCustomItemsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "selected_custom_item_selected_variants_item_id",
+				Columns:    []*schema.Column{SelectedCustomItemSelectedVariantsColumns[1]},
+				RefColumns: []*schema.Column{ItemsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		CustomItemsTable,
@@ -154,16 +172,18 @@ var (
 		OrderCustomItemsTable,
 		OrderItemsTable,
 		SelectedCustomItemsTable,
+		SelectedCustomItemSelectedVariantsTable,
 	}
 )
 
 func init() {
 	ItemsTable.ForeignKeys[0].RefTable = CustomItemsTable
-	ItemsTable.ForeignKeys[1].RefTable = SelectedCustomItemsTable
 	OrderCustomItemsTable.ForeignKeys[0].RefTable = OrdersTable
 	OrderCustomItemsTable.ForeignKeys[1].RefTable = CustomItemsTable
 	OrderItemsTable.ForeignKeys[0].RefTable = OrdersTable
 	OrderItemsTable.ForeignKeys[1].RefTable = ItemsTable
 	SelectedCustomItemsTable.ForeignKeys[0].RefTable = OrderCustomItemsTable
 	SelectedCustomItemsTable.ForeignKeys[1].RefTable = CustomItemsTable
+	SelectedCustomItemSelectedVariantsTable.ForeignKeys[0].RefTable = SelectedCustomItemsTable
+	SelectedCustomItemSelectedVariantsTable.ForeignKeys[1].RefTable = ItemsTable
 }

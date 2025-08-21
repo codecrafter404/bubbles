@@ -115,10 +115,10 @@ func (_c *SelectedCustomItemCreate) createSpec() (*SelectedCustomItem, *sqlgraph
 	)
 	if nodes := _c.mutation.SelectedVariantsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   selectedcustomitem.SelectedVariantsTable,
-			Columns: []string{selectedcustomitem.SelectedVariantsColumn},
+			Columns: selectedcustomitem.SelectedVariantsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(item.FieldID, field.TypeInt),

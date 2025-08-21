@@ -58,7 +58,7 @@ func HasSelectedVariants() predicate.SelectedCustomItem {
 	return predicate.SelectedCustomItem(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, SelectedVariantsTable, SelectedVariantsColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, SelectedVariantsTable, SelectedVariantsPrimaryKey...),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})

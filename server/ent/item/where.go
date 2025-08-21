@@ -4,6 +4,7 @@ package item
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/codecrafter404/bubble/ent/predicate"
 )
 
@@ -320,6 +321,29 @@ func NotesEqualFold(v string) predicate.Item {
 // NotesContainsFold applies the ContainsFold predicate on the "notes" field.
 func NotesContainsFold(v string) predicate.Item {
 	return predicate.Item(sql.FieldContainsFold(FieldNotes, v))
+}
+
+// HasSelectedCustomItems applies the HasEdge predicate on the "selected_custom_items" edge.
+func HasSelectedCustomItems() predicate.Item {
+	return predicate.Item(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, SelectedCustomItemsTable, SelectedCustomItemsPrimaryKey...),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSelectedCustomItemsWith applies the HasEdge predicate on the "selected_custom_items" edge with a given conditions (other predicates).
+func HasSelectedCustomItemsWith(preds ...predicate.SelectedCustomItem) predicate.Item {
+	return predicate.Item(func(s *sql.Selector) {
+		step := newSelectedCustomItemsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

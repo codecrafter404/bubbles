@@ -88,6 +88,7 @@
 		$state(null);
 
 	function submitOrder() {
+		if (order.items.length == 0 && order.customItems.length == 0) return;
 		let res = mutationStore({
 			client: graphQLClient,
 			query: updateOrderGQL,
@@ -149,7 +150,7 @@
 			/>
 		{/if}
 	{:else if updatedOrder.error}
-		<p>Failed to submit order: {JSON.stringify(updatedOrder.data)}</p>
+		<p>Failed to submit order: {JSON.stringify(updatedOrder.error)}</p>
 	{:else}
 		<p class="text-2xl font-bold">#{updatedOrder.data!.createOrder.identifier}</p>
 	{/if}

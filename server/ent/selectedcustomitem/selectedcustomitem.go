@@ -18,13 +18,11 @@ const (
 	EdgeCustomItem = "custom_item"
 	// Table holds the table name of the selectedcustomitem in the database.
 	Table = "selected_custom_items"
-	// SelectedVariantsTable is the table that holds the selected_variants relation/edge.
-	SelectedVariantsTable = "items"
+	// SelectedVariantsTable is the table that holds the selected_variants relation/edge. The primary key declared below.
+	SelectedVariantsTable = "selected_custom_item_selected_variants"
 	// SelectedVariantsInverseTable is the table name for the Item entity.
 	// It exists in this package in order to avoid circular dependency with the "item" package.
 	SelectedVariantsInverseTable = "items"
-	// SelectedVariantsColumn is the table column denoting the selected_variants relation/edge.
-	SelectedVariantsColumn = "selected_custom_item_selected_variants"
 	// CustomItemTable is the table that holds the custom_item relation/edge.
 	CustomItemTable = "selected_custom_items"
 	// CustomItemInverseTable is the table name for the CustomItem entity.
@@ -45,6 +43,12 @@ var ForeignKeys = []string{
 	"order_custom_item_selected_custom_items",
 	"selected_custom_item_custom_item",
 }
+
+var (
+	// SelectedVariantsPrimaryKey and SelectedVariantsColumn2 are the table columns denoting the
+	// primary key for the selected_variants relation (M2M).
+	SelectedVariantsPrimaryKey = []string{"selected_custom_item_id", "item_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -93,7 +97,7 @@ func newSelectedVariantsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SelectedVariantsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, SelectedVariantsTable, SelectedVariantsColumn),
+		sqlgraph.Edge(sqlgraph.M2M, false, SelectedVariantsTable, SelectedVariantsPrimaryKey...),
 	)
 }
 func newCustomItemStep() *sqlgraph.Step {
