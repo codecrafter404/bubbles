@@ -11,6 +11,7 @@
 	import OrderSelectionGrid from './OrderSelectionGrid.svelte';
 	import { getNextCustomItem } from './ViewHelper';
 	import { KeyboardPressedEvent, ProcessEvent } from '$lib/Keyboard';
+	import ItemPricingComponent from '$lib/components/ItemPricingComponent.svelte';
 
 	let graphQLClient = getContextClient();
 
@@ -127,31 +128,36 @@
 
 <svelte:body onkeypress={handleKeyPressed} />
 
-<div
-	class={`${updatedOrder != undefined ? 'pointer-events-none select-none' : ''} h-screen w-screen`}
->
-	{#if orderCompleate}
-		<p class="font-bold text-green-500">READY</p>
-	{:else}
-		<p class="font-bold text-red-500">NOT READY</p>
-	{/if}
-
-	{#if updatedOrder == null || updatedOrder.fetching}
-		{#if $data.fetching}
-			<p>Loading...</p>
-		{:else if $data.error != undefined}
-			<p>Failed to load items & configuration: {JSON.stringify($data.error)}</p>
+<div class="flex flex-row">
+	<div
+		class={`${updatedOrder != undefined ? 'pointer-events-none select-none' : ''} h-screen w-[70vw]`}
+	>
+		{#if orderCompleate}
+			<p class="font-bold text-green-500">READY</p>
 		{:else}
-			<OrderSelectionGrid
-				bind:currentOrder={order}
-				{items}
-				{customItems}
-				inputAllowed={updatedOrder == null}
-			/>
+			<p class="font-bold text-red-500">NOT READY</p>
 		{/if}
-	{:else if updatedOrder.error}
-		<p>Failed to submit order: {JSON.stringify(updatedOrder.error)}</p>
-	{:else}
-		<p class="text-2xl font-bold">#{updatedOrder.data!.createOrder.identifier}</p>
-	{/if}
+
+		{#if updatedOrder == null || updatedOrder.fetching}
+			{#if $data.fetching}
+				<p>Loading...</p>
+			{:else if $data.error != undefined}
+				<p>Failed to load items & configuration: {JSON.stringify($data.error)}</p>
+			{:else}
+				<OrderSelectionGrid
+					bind:currentOrder={order}
+					{items}
+					{customItems}
+					inputAllowed={updatedOrder == null}
+				/>
+			{/if}
+		{:else if updatedOrder.error}
+			<p>Failed to submit order: {JSON.stringify(updatedOrder.error)}</p>
+		{:else}
+			<p class="text-2xl font-bold">#{updatedOrder.data!.createOrder.identifier}</p>
+		{/if}
+	</div>
+	<div class="grow bg-blue-300">
+		<ItemPricingComponent {customItems} {items} orderInput={order} />
+	</div>
 </div>
