@@ -2,17 +2,28 @@
 import type { CodegenConfig } from '@graphql-codegen/cli';
 
 const config: CodegenConfig = {
-  overwrite: true,
-  schema: "../server/graph/schema.graphqls",
-  documents: "./src/gql-queries/**/*.{gql,graphql}",
+  schema: '../server/gql_schema/*.graphql',
+  documents: ['src/**/*.svelte'],
+  ignoreNoDocuments: true, // for better experience with the watcher
   generates: {
-    "src/generated/graphql.ts": {
-      plugins: ['typescript', 'typescript-operations', 'typed-document-node'],
+    './src/gql/': {
+      preset: 'client',
+      plugins: ['typescript'],
       config: {
-        useTypeImports: true
+        useTypeImports: true,
+        scalars: {
+          ID: {
+            input: 'number',
+            output: 'number'
+          },
+          Time: {
+            input: 'string',
+            output: 'string'
+          }
+        }
       }
-    }
-  }
+    },
+  },
 };
 
 export default config;

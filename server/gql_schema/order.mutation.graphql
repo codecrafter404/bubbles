@@ -1,0 +1,12 @@
+extend input CreateOrderCustomItemInput {
+  selectedCustomItems: [CreateSelectedCustomItemInput!]!
+}
+extend input CreateOrderInput {
+  items: [CreateOrderItemInput!]!,
+  customItems: [CreateOrderCustomItemInput!]!
+}
+
+extend type Mutation {
+  createOrder(input: CreateOrderInput!): Order!
+  updateOrder(id: ID!, input: UpdateOrderInput!): Order!
+}

@@ -1,0 +1,6 @@
+extend type Mutation {
+  createItem(input: CreateItemInput!): Item!
+  updateItem(id: ID!, input: UpdateItemInput!): Item!
+  deleteItem(id: ID!): ID!
+  deleteItems(ids: [ID!]!): [ID!]!
+}

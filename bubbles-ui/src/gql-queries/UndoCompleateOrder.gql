@@ -1,3 +1,0 @@
-mutation UndoCompleateOrder($order: Int!) {
-  updateOrder(order: $order, state: CREATED) {id}
-}
