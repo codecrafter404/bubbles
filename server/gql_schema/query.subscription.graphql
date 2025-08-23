@@ -1,0 +1,3 @@
+extend type Subscription {
+  nextOrder(where: OrderWhereInput): Order
+}

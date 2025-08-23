@@ -11,7 +11,7 @@ type Config struct {
 	OrderConfig  OrderConfig
 	ServerConfig ServerConfig
 	DbPath       string        `default:"file:bubbles.db?_foreign_keys=on"`
-	LogLevel     zerolog.Level `default:"info"`
+	LogLevel     zerolog.Level `default:"trace"`
 }
 
 func LoadConfig() (Config, error) {

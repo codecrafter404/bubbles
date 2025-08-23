@@ -3,6 +3,7 @@ enum NotificationType {
   ORDER_UPDATED
   ITEMS_CHANGED
   CUSTOM_ITEMS_CHANGED
+  NEW_SUBSCRIBER
 }
 
 type Subscription {

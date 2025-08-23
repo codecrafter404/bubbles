@@ -15,6 +15,8 @@ import (
 	"github.com/codecrafter404/bubble/ent/migrate"
 	"github.com/codecrafter404/bubble/gql"
 	"github.com/codecrafter404/bubble/server"
+	"github.com/codecrafter404/bubble/utils"
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -57,7 +59,15 @@ func main() {
 		)
 	}
 
-	srv := handler.NewDefaultServer(gql.NewSchema(client, &config))
+	disconnect := make(chan uuid.UUID, 1024)
+	subscribers := make([]*utils.Subscriber, 0)
+	notifier := make(chan gql.NotificationType, config.OrderConfig.MaxNotificationQueue)
+
+	ctx := context.Background()
+
+	go server.OrderBalancer(ctx, client, notifier, &subscribers, disconnect, &config)
+
+	srv := handler.NewDefaultServer(gql.NewSchema(client, &config, &subscribers, disconnect, notifier))
 	srv.Use(entgql.Transactioner{TxOpener: client})
 
 	mux.Handle("/query", srv)

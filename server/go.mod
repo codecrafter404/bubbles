@@ -11,6 +11,7 @@ require (
 	github.com/cristalhq/aconfig v0.19.0
 	github.com/cristalhq/aconfig/aconfigtoml v0.17.1
 	github.com/cristalhq/aconfig/aconfigyaml v0.17.1
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-sqlite3 v1.14.31
 	github.com/rs/zerolog v1.34.0
@@ -28,7 +29,6 @@ require (
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect

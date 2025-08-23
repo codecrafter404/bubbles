@@ -19,6 +19,7 @@ const (
 	NotificationTypeOrderUpdated       NotificationType = "ORDER_UPDATED"
 	NotificationTypeItemsChanged       NotificationType = "ITEMS_CHANGED"
 	NotificationTypeCustomItemsChanged NotificationType = "CUSTOM_ITEMS_CHANGED"
+	NotificationTypeNewSubscriber      NotificationType = "NEW_SUBSCRIBER"
 )
 
 var AllNotificationType = []NotificationType{
@@ -26,11 +27,12 @@ var AllNotificationType = []NotificationType{
 	NotificationTypeOrderUpdated,
 	NotificationTypeItemsChanged,
 	NotificationTypeCustomItemsChanged,
+	NotificationTypeNewSubscriber,
 }
 
 func (e NotificationType) IsValid() bool {
 	switch e {
-	case NotificationTypeNewOrder, NotificationTypeOrderUpdated, NotificationTypeItemsChanged, NotificationTypeCustomItemsChanged:
+	case NotificationTypeNewOrder, NotificationTypeOrderUpdated, NotificationTypeItemsChanged, NotificationTypeCustomItemsChanged, NotificationTypeNewSubscriber:
 		return true
 	}
 	return false

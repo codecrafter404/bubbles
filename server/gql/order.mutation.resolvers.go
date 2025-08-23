@@ -72,16 +72,18 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, input ent.CreateOrde
 
 	identifier = strconv.Itoa(identifierInt)
 
-	NotifyEvent(NotificationTypeNewOrder, r.notification)
 	// set missing inputs: total, identifier
-	return client.Order.Create().SetInput(input).SetIdentifier(identifier).SetTotal(total).SetSubmitted(time.Now()).Save(ctx)
+	res, err := client.Order.Create().SetInput(input).SetIdentifier(identifier).SetTotal(total).SetSubmitted(time.Now()).Save(ctx)
+	NotifyEvent(NotificationTypeNewOrder, r.notification)
+	return res, err
 }
 
 // UpdateOrder is the resolver for the updateOrder field.
 func (r *mutationResolver) UpdateOrder(ctx context.Context, id int, input ent.UpdateOrderInput) (*ent.Order, error) {
 	client := ent.FromContext(ctx)
+	res, err := client.Order.UpdateOneID(id).SetInput(input).Save(ctx)
 	NotifyEvent(NotificationTypeOrderUpdated, r.notification)
-	return client.Order.UpdateOneID(id).SetInput(input).Save(ctx)
+	return res, err
 }
 
 // SelectedCustomItems is the resolver for the selectedCustomItems field.
